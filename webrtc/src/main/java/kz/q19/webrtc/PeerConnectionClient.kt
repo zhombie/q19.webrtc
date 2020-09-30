@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package kz.q19.webrtc
 
 import android.app.Activity
@@ -7,7 +9,9 @@ import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
 import java.util.concurrent.Executors
 
-class PeerConnectionClient {
+class PeerConnectionClient(
+    private val activity: Activity
+) {
 
     companion object {
         private const val TAG = "PeerConnectionClient"
@@ -21,8 +25,6 @@ class PeerConnectionClient {
 
         private const val BPS_IN_KBPS = 1000
     }
-
-    private var activity: Activity? = null
 
     private val executor = Executors.newSingleThreadExecutor()
 
@@ -74,7 +76,6 @@ class PeerConnectionClient {
     private var listener: Listener? = null
 
     fun createPeerConnection(
-        activity: Activity,
         isMicrophoneEnabled: Boolean,
         isCameraEnabled: Boolean,
         iceServers: List<PeerConnection.IceServer>,
@@ -83,7 +84,6 @@ class PeerConnectionClient {
     ) {
         Logger.debug(TAG, "createPeerConnection")
 
-        this.activity = activity
         this.isMicrophoneEnabled = isMicrophoneEnabled
         this.isCameraEnabled = isCameraEnabled
         this.eglBase = EglBase.create()
@@ -157,7 +157,7 @@ class PeerConnectionClient {
         if (isCameraEnabled) {
             this.localSurfaceView = localSurfaceView
 
-            activity?.runOnUiThread {
+            activity.runOnUiThread {
                 this.localSurfaceView?.init(eglBase?.eglBaseContext, null)
                 this.localSurfaceView?.setEnableHardwareScaler(true)
                 this.localSurfaceView?.setMirror(false)
@@ -171,7 +171,7 @@ class PeerConnectionClient {
         if (isCameraEnabled) {
             this.remoteSurfaceView = remoteSurfaceView
 
-            activity?.runOnUiThread {
+            activity.runOnUiThread {
                 this.remoteSurfaceView?.init(eglBase?.eglBaseContext, null)
                 this.remoteSurfaceView?.setEnableHardwareScaler(true)
                 this.remoteSurfaceView?.setMirror(false)
@@ -183,7 +183,7 @@ class PeerConnectionClient {
     }
 
     fun switchScalingType() {
-        activity?.runOnUiThread {
+        activity.runOnUiThread {
             remoteVideoScalingType = if (remoteVideoScalingType == ScalingType.SCALE_ASPECT_FILL) {
                 ScalingType.SCALE_ASPECT_FIT
             } else {
@@ -240,14 +240,14 @@ class PeerConnectionClient {
     }
 
     private fun startAudioManager() {
-        activity?.runOnUiThread {
+        activity.runOnUiThread {
             audioManager = AppRTCAudioManager.create(activity)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
                 Logger.debug(TAG, "onAudioManagerDevicesChanged: $availableAudioDevices, selected: $selectedAudioDevice")
             }
         }
 
-        activity?.volumeControlStream = AudioManager.STREAM_VOICE_CALL
+        activity.volumeControlStream = AudioManager.STREAM_VOICE_CALL
     }
 
     private fun createVideoTrack(): VideoTrack? {
@@ -483,7 +483,7 @@ class PeerConnectionClient {
     }
 
     fun dispose() {
-        activity?.runOnUiThread {
+        activity.runOnUiThread {
             audioManager?.stop()
             audioManager = null
 
@@ -495,7 +495,6 @@ class PeerConnectionClient {
             }
         }
 
-        activity = null
         isInitiator = false
         sdpMediaConstraints = null
         localSdp = null
@@ -505,7 +504,7 @@ class PeerConnectionClient {
         localVideoSender = null
 
         executor.execute {
-            activity?.volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
+            activity.volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
 
             peerConnection?.dispose()
 
