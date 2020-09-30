@@ -10,7 +10,9 @@ import org.webrtc.RendererCommon.ScalingType
 import java.util.concurrent.Executors
 
 class PeerConnectionClient(
-    private val activity: Activity
+    private val activity: Activity,
+    private var localSurfaceView: SurfaceViewRenderer? = null,
+    private var remoteSurfaceView: SurfaceViewRenderer? = null
 ) {
 
     companion object {
@@ -41,9 +43,6 @@ class PeerConnectionClient(
     private var eglBase: EglBase? = null
 
     private val sdpObserver = InnerSdpObserver()
-
-    private var localSurfaceView: SurfaceViewRenderer? = null
-    private var remoteSurfaceView: SurfaceViewRenderer? = null
 
     private var encoderFactory: VideoEncoderFactory? = null
     private var decoderFactory: VideoDecoderFactory? = null
@@ -94,7 +93,7 @@ class PeerConnectionClient(
         sdpMediaConstraints = null
         localSdp = null
 
-        sdpMediaConstraints = getMediaConstaints()
+        sdpMediaConstraints = getMediaConstraints()
 
         executor.execute {
             val initializationOptions = PeerConnectionFactory.InitializationOptions
@@ -133,7 +132,7 @@ class PeerConnectionClient(
         }
     }
 
-    private fun getMediaConstaints(): MediaConstraints {
+    private fun getMediaConstraints(): MediaConstraints {
         val mediaConstraints = MediaConstraints()
 
         if (isMicrophoneEnabled) {
@@ -151,12 +150,14 @@ class PeerConnectionClient(
         return mediaConstraints
     }
 
-    fun initLocalCameraStream(localSurfaceView: SurfaceViewRenderer) {
+    fun setLocalSurfaceView(localSurfaceView: SurfaceViewRenderer?) {
+        this.localSurfaceView = localSurfaceView
+    }
+
+    fun initLocalCameraStream() {
         Logger.debug(TAG, "initLocalStream")
 
         if (isCameraEnabled) {
-            this.localSurfaceView = localSurfaceView
-
             activity.runOnUiThread {
                 this.localSurfaceView?.init(eglBase?.eglBaseContext, null)
                 this.localSurfaceView?.setEnableHardwareScaler(true)
@@ -167,10 +168,12 @@ class PeerConnectionClient(
         }
     }
 
-    fun initRemoteCameraStream(remoteSurfaceView: SurfaceViewRenderer) {
-        if (isCameraEnabled) {
-            this.remoteSurfaceView = remoteSurfaceView
+    fun setRemoteSurfaceView(remoteSurfaceView: SurfaceViewRenderer?) {
+        this.remoteSurfaceView = remoteSurfaceView
+    }
 
+    fun initRemoteCameraStream() {
+        if (isCameraEnabled) {
             activity.runOnUiThread {
                 this.remoteSurfaceView?.init(eglBase?.eglBaseContext, null)
                 this.remoteSurfaceView?.setEnableHardwareScaler(true)
