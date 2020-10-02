@@ -29,11 +29,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import kz.q19.utils.asserts.AssertUtils;
+import kz.q19.webrtc.utils.Logger;
+import kz.q19.webrtc.utils.ThreadUtils;
 
 /**
  * AppRTCAudioManager manages all audio related parts.
  */
-public class AppRTCAudioManager {
+class AppRTCAudioManager {
 
   private static final String TAG = "AppRTCAudioManager";
 

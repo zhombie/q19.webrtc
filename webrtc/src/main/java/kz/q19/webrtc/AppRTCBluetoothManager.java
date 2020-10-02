@@ -195,7 +195,7 @@ class AppRTCBluetoothManager {
 
   /** Construction. */
   static AppRTCBluetoothManager create(Context context, AppRTCAudioManager audioManager) {
-    Log.d(TAG, "create" + kz.q19.webrtc.ThreadUtils.getThreadInfo());
+    Log.d(TAG, "create" + kz.q19.webrtc.utils.ThreadUtils.getThreadInfo());
     return new AppRTCBluetoothManager(context, audioManager);
   }
 

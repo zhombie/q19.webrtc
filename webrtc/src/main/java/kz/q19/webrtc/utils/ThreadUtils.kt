@@ -1,6 +1,6 @@
-package kz.q19.webrtc
+package kz.q19.webrtc.utils
 
-object ThreadUtils {
+internal object ThreadUtils {
 
     /**
      * Helper method for building a string of thread information.

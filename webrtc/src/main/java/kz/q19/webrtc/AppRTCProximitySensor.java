@@ -52,7 +52,7 @@ class AppRTCProximitySensor implements SensorEventListener {
   }
 
   private AppRTCProximitySensor(Context context, Runnable sensorStateListener) {
-    Log.d(TAG, "AppRTCProximitySensor" + kz.q19.webrtc.ThreadUtils.getThreadInfo());
+    Log.d(TAG, "AppRTCProximitySensor" + kz.q19.webrtc.utils.ThreadUtils.getThreadInfo());
     onSensorStateListener = sensorStateListener;
     sensorManager = ((SensorManager) context.getSystemService(Context.SENSOR_SERVICE));
   }
@@ -63,7 +63,7 @@ class AppRTCProximitySensor implements SensorEventListener {
    */
   public boolean start() {
     threadChecker.checkIsOnValidThread();
-    Log.d(TAG, "start" + kz.q19.webrtc.ThreadUtils.getThreadInfo());
+    Log.d(TAG, "start" + kz.q19.webrtc.utils.ThreadUtils.getThreadInfo());
     if (!initDefaultSensor()) {
       // Proximity sensor is not supported on this device.
       return false;
@@ -75,7 +75,7 @@ class AppRTCProximitySensor implements SensorEventListener {
   /** Deactivate the proximity sensor. */
   public void stop() {
     threadChecker.checkIsOnValidThread();
-    Log.d(TAG, "stop" + kz.q19.webrtc.ThreadUtils.getThreadInfo());
+    Log.d(TAG, "stop" + kz.q19.webrtc.utils.ThreadUtils.getThreadInfo());
     if (proximitySensor == null) {
       return;
     }
@@ -120,7 +120,7 @@ class AppRTCProximitySensor implements SensorEventListener {
       onSensorStateListener.run();
     }
 
-    Log.d(TAG, "onSensorChanged" + kz.q19.webrtc.ThreadUtils.getThreadInfo() + ": "
+    Log.d(TAG, "onSensorChanged" + kz.q19.webrtc.utils.ThreadUtils.getThreadInfo() + ": "
             + "accuracy=" + event.accuracy + ", timestamp=" + event.timestamp + ", distance="
             + event.values[0]);
   }

@@ -1,5 +1,6 @@
-package kz.q19.webrtc
+package kz.q19.webrtc.core
 
+import kz.q19.webrtc.utils.Logger
 import org.webrtc.VideoFrame
 import org.webrtc.VideoSink
 

@@ -1,9 +1,9 @@
-package kz.q19.webrtc
+package kz.q19.webrtc.utils
 
 import android.os.Build
 import android.util.Log
 
-object Logger {
+internal object Logger {
 
     private const val LIMIT = 4000
 
