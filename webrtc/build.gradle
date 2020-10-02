@@ -37,7 +37,7 @@ dependencies {
 
     implementation 'androidx.annotation:annotation:1.1.0'
 
-    implementation 'com.github.zhombie:q19.domain:1.0.7'
+    implementation 'com.github.zhombie:q19.domain:1.0.8'
     implementation 'com.github.zhombie:q19.utils:1.0.6'
 
     implementation 'org.webrtc:google-webrtc:1.0.30039'

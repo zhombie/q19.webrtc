@@ -471,6 +471,10 @@ class PeerConnectionClient(
 
             override fun onRemoveStream(mediaStream: MediaStream) {
                 Logger.debug(TAG, "onRemoveStream: $mediaStream")
+
+                executor.execute {
+                    listener?.onRemoveStream(mediaStream)
+                }
             }
 
             override fun onDataChannel(dataChannel: DataChannel) {
@@ -664,7 +668,10 @@ class PeerConnectionClient(
         fun onIceConnectionChange(webRTCIceConnectionState: WebRTCIceConnectionState)
         fun onRenegotiationNeeded()
         fun onLocalDescription(webRTCSessionDescription: WebRTCSessionDescription)
+
         fun onAddRemoteStream(mediaStream: MediaStream)
+        fun onRemoveStream(mediaStream: MediaStream)
+
         fun onPeerConnectionError(errorMessage: String)
 
         fun onRemoteScreenScaleChanged(isFilled: Boolean)
