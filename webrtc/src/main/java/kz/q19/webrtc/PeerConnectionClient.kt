@@ -556,6 +556,13 @@ class PeerConnectionClient(
 //            PeerConnectionFactory.stopInternalTracingCapture()
 //            PeerConnectionFactory.shutdownInternalTracer()
 
+            try {
+                localWebRTCSurfaceView?.release()
+                remoteWebRTCSurfaceView?.release()
+            } catch (e: Exception) {
+                Logger.debug(TAG, "Exception on SurfaceViewRenderer release. $e")
+            }
+
             eglBase?.release()
             eglBase = null
 
