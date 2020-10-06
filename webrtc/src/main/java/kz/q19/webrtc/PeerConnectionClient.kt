@@ -6,16 +6,14 @@ import android.app.Activity
 import android.media.AudioManager
 import android.util.Log
 import kz.q19.domain.model.webrtc.WebRTCIceCandidate
-import kz.q19.domain.model.webrtc.WebRTCIceServer
 import kz.q19.domain.model.webrtc.WebRTCSessionDescription
 import kz.q19.webrtc.core.ProxyVideoSink
 import kz.q19.webrtc.core.WebRTCIceConnectionState
 import kz.q19.webrtc.core.WebRTCSurfaceView
 import kz.q19.webrtc.utils.*
-import kz.q19.webrtc.utils.asIceCandidate
-import kz.q19.webrtc.utils.convertType
 import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class PeerConnectionClient(
@@ -26,21 +24,18 @@ class PeerConnectionClient(
 
     companion object {
         private const val TAG = "PeerConnectionClient"
-
-        const val VIDEO_RESOLUTION_WIDTH = 1024
-        const val VIDEO_RESOLUTION_HEIGHT = 768
-        const val FPS = 24
-
-        const val AUDIO_TRACK_ID = "ARDAMSa0"
-        const val VIDEO_TRACK_ID = "ARDAMSv0"
-
-        private const val BPS_IN_KBPS = 1000
     }
 
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
-    private var isMicrophoneEnabled: Boolean = true
-    private var isCameraEnabled: Boolean = false
+    private var localVideoWidth: Int = Configs.VIDEO_RESOLUTION_WIDTH
+    private var localVideoHeight: Int = Configs.VIDEO_RESOLUTION_HEIGHT
+    private var localVideoFPS: Int = Configs.FPS
+
+    private var isLocalAudioEnabled: Boolean = Configs.LOCAL_AUDIO_ENABLED
+    private var isRemoteAudioEnabled: Boolean = Configs.REMOTE_AUDIO_ENABLED
+    private var isLocalVideoEnabled: Boolean = Configs.LOCAL_VIDEO_ENABLED
+    private var isRemoteVideoEnabled: Boolean = Configs.REMOTE_VIDEO_ENABLED
 
     private var iceServers: List<PeerConnection.IceServer>? = null
 
@@ -67,11 +62,10 @@ class PeerConnectionClient(
 
     private var localAudioTrack: AudioTrack? = null
     private var remoteAudioTrack: AudioTrack? = null
-
     private var localVideoTrack: VideoTrack? = null
     private var remoteVideoTrack: VideoTrack? = null
 
-    private var localSdp: SessionDescription? = null
+    private var localSessionDescription: SessionDescription? = null
 
     private var localVideoSender: RtpSender? = null
 
@@ -84,20 +78,19 @@ class PeerConnectionClient(
     private var listener: Listener? = null
 
     fun createPeerConnection(
-        isMicrophoneEnabled: Boolean,
-        isCameraEnabled: Boolean,
-        iceServers: List<WebRTCIceServer>,
-        videoCodecHwAcceleration: Boolean = true,
-        listener: Listener
+        setupParams: SetupParams,
+        listener: Listener? = null
     ) {
         Logger.debug(TAG, "createPeerConnection")
 
-        this.isMicrophoneEnabled = isMicrophoneEnabled
-        this.isCameraEnabled = isCameraEnabled
+        isLocalAudioEnabled = setupParams.isLocalAudioEnabled
+        isLocalVideoEnabled = setupParams.isLocalVideoEnabled
+        isRemoteAudioEnabled = setupParams.isRemoteAudioEnabled
+        isRemoteVideoEnabled = setupParams.isRemoteVideoEnabled
 
-        this.eglBase = EglBase.create()
+        eglBase = EglBase.create()
 
-        this.iceServers = iceServers.map {
+        iceServers = setupParams.iceServers.map {
             PeerConnection.IceServer.builder(it.url)
                 .setUsername(it.username)
                 .setPassword(it.credential)
@@ -108,7 +101,7 @@ class PeerConnectionClient(
 
         isInitiator = false
         sdpMediaConstraints = null
-        localSdp = null
+        localSessionDescription = null
 
         sdpMediaConstraints = buildMediaConstraints()
 
@@ -123,8 +116,8 @@ class PeerConnectionClient(
             val options = PeerConnectionFactory.Options()
             options.disableNetworkMonitor = true
 
-            if (isCameraEnabled) {
-                if (videoCodecHwAcceleration) {
+            if (isLocalVideoEnabled) {
+                if (setupParams.videoCodecHwAcceleration) {
                     encoderFactory = DefaultVideoEncoderFactory(
                         eglBase?.eglBaseContext,  /* enableIntelVp8Encoder */
                         true,  /* enableH264HighProfile */
@@ -152,16 +145,36 @@ class PeerConnectionClient(
     private fun buildMediaConstraints(): MediaConstraints {
         val mediaConstraints = MediaConstraints()
 
-        if (isMicrophoneEnabled) {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+        if (isLocalAudioEnabled) {
+            mediaConstraints.mandatory.add(
+                MediaConstraints.KeyValuePair(
+                    "OfferToReceiveAudio",
+                    "true"
+                )
+            )
         } else {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
+            mediaConstraints.mandatory.add(
+                MediaConstraints.KeyValuePair(
+                    "OfferToReceiveAudio",
+                    "false"
+                )
+            )
         }
 
-        if (isCameraEnabled) {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
+        if (isLocalVideoEnabled) {
+            mediaConstraints.mandatory.add(
+                MediaConstraints.KeyValuePair(
+                    "OfferToReceiveVideo",
+                    "true"
+                )
+            )
         } else {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
+            mediaConstraints.mandatory.add(
+                MediaConstraints.KeyValuePair(
+                    "OfferToReceiveVideo",
+                    "false"
+                )
+            )
         }
 
         return mediaConstraints
@@ -171,14 +184,14 @@ class PeerConnectionClient(
         this.localWebRTCSurfaceView = localWebRTCSurfaceView
     }
 
-    fun initLocalCameraStream() {
+    fun initLocalCameraStream(isMirrored: Boolean = false) {
         Logger.debug(TAG, "initLocalStream")
 
-        if (isCameraEnabled) {
+        if (isLocalVideoEnabled) {
             activity.runOnUiThread {
                 localWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
                 localWebRTCSurfaceView?.setEnableHardwareScaler(true)
-                localWebRTCSurfaceView?.setMirror(false)
+                localWebRTCSurfaceView?.setMirror(isMirrored)
                 localWebRTCSurfaceView?.setZOrderMediaOverlay(true)
                 localWebRTCSurfaceView?.setScalingType(ScalingType.SCALE_ASPECT_FIT)
             }
@@ -189,12 +202,12 @@ class PeerConnectionClient(
         this.remoteWebRTCSurfaceView = remoteWebRTCSurfaceView
     }
 
-    fun initRemoteCameraStream() {
-        if (isCameraEnabled) {
+    fun initRemoteCameraStream(isMirrored: Boolean = false) {
+        if (isRemoteVideoEnabled) {
             activity.runOnUiThread {
                 remoteWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
                 remoteWebRTCSurfaceView?.setEnableHardwareScaler(true)
-                remoteWebRTCSurfaceView?.setMirror(false)
+                remoteWebRTCSurfaceView?.setMirror(isMirrored)
 
                 remoteVideoScalingType = ScalingType.SCALE_ASPECT_FILL
                 remoteWebRTCSurfaceView?.setScalingType(remoteVideoScalingType)
@@ -215,15 +228,15 @@ class PeerConnectionClient(
     }
 
     fun addLocalStreamToPeer() {
-        Logger.debug(TAG, "addLocalStreamToPeer")
+        Logger.debug(TAG, "addLocalStreamToPeer()")
 
         localMediaStream = peerConnectionFactory?.createLocalMediaStream("ARDAMS")
 
-        if (isMicrophoneEnabled) {
+        if (isLocalAudioEnabled) {
             localMediaStream?.addTrack(createAudioTrack())
         }
 
-        if (isCameraEnabled) {
+        if (isLocalVideoEnabled) {
             localMediaStream?.addTrack(createVideoTrack())
             findVideoSender()
         }
@@ -236,21 +249,21 @@ class PeerConnectionClient(
     }
 
     fun addRemoteStreamToPeer(mediaStream: MediaStream) {
-        Logger.debug(TAG, "addRemoteStreamToPeer")
+        Logger.debug(TAG, "addRemoteStreamToPeer() -> mediaStream: $mediaStream")
 
         if (mediaStream.audioTracks.isNotEmpty()) {
-            remoteAudioTrack = mediaStream.audioTracks[0]
-            remoteAudioTrack?.setEnabled(true)
+            remoteAudioTrack = mediaStream.audioTracks.first()
+            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
         }
 
-        if (isCameraEnabled) {
+        if (isRemoteVideoEnabled) {
             if (remoteWebRTCSurfaceView == null) {
                 throw NullPointerException("Remote SurfaceViewRenderer is null.")
             }
 
             if (mediaStream.videoTracks.isNotEmpty()) {
-                remoteVideoTrack = mediaStream.videoTracks[0]
-                remoteVideoTrack?.setEnabled(true)
+                remoteVideoTrack = mediaStream.videoTracks.first()
+                remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
 
                 val remoteVideoSink = ProxyVideoSink()
                 remoteVideoSink.setTarget(remoteWebRTCSurfaceView)
@@ -263,7 +276,7 @@ class PeerConnectionClient(
         activity.runOnUiThread {
             audioManager = AppRTCAudioManager.create(activity)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
-                Logger.debug(TAG, "onAudioManagerDevicesChanged: $availableAudioDevices, selected: $selectedAudioDevice")
+                Logger.debug(TAG, "onAudioManagerDevicesChanged(): $availableAudioDevices, selected: $selectedAudioDevice")
             }
         }
 
@@ -280,15 +293,21 @@ class PeerConnectionClient(
         localVideoSource = peerConnectionFactory?.createVideoSource(false)
 
         localVideoCapturer = createVideoCapturer()
-        localVideoCapturer?.initialize(surfaceTextureHelper, activity, localVideoSource?.capturerObserver)
-        localVideoCapturer?.startCapture(
-            VIDEO_RESOLUTION_WIDTH,
-            VIDEO_RESOLUTION_HEIGHT,
-            FPS
+
+        localVideoCapturer?.initialize(
+            surfaceTextureHelper,
+            activity,
+            localVideoSource?.capturerObserver
         )
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(VIDEO_TRACK_ID, localVideoSource)
-        localVideoTrack?.setEnabled(true)
+        localVideoCapturer?.startCapture(
+            Configs.VIDEO_RESOLUTION_WIDTH,
+            Configs.VIDEO_RESOLUTION_HEIGHT,
+            Configs.FPS
+        )
+
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(Configs.VIDEO_TRACK_ID, localVideoSource)
+        localVideoTrack?.setEnabled(isLocalVideoEnabled)
 
         val videoSink = ProxyVideoSink()
         videoSink.setTarget(localWebRTCSurfaceView)
@@ -300,8 +319,8 @@ class PeerConnectionClient(
     private fun createAudioTrack(): AudioTrack? {
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(AUDIO_TRACK_ID, localAudioSource)
-        localAudioTrack?.setEnabled(true)
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(Configs.AUDIO_TRACK_ID, localAudioSource)
+        localAudioTrack?.setEnabled(isLocalAudioEnabled)
 
         return localAudioTrack
     }
@@ -355,7 +374,7 @@ class PeerConnectionClient(
             for (encoding in parameters.encodings) {
                 // Null value means no limit.
                 encoding.maxBitrateBps =
-                    if (maxBitrateKbps == null) null else maxBitrateKbps * BPS_IN_KBPS
+                    if (maxBitrateKbps == null) null else maxBitrateKbps * Configs.BPS_IN_KBPS
             }
             if (!localVideoSender!!.setParameters(parameters)) {
                 Logger.debug(TAG, "RtpSender.setParameters failed.")
@@ -373,7 +392,7 @@ class PeerConnectionClient(
     }
 
     fun setRemoteDescription(webRTCSessionDescription: WebRTCSessionDescription) {
-        Logger.debug(TAG, "webRTCSessionDescription: $webRTCSessionDescription")
+        Logger.debug(TAG, "setRemoteDescription() -> webRTCSessionDescription: $webRTCSessionDescription")
 
         executor.execute {
             var sdpDescription = CodecUtils.preferCodec(
@@ -398,7 +417,7 @@ class PeerConnectionClient(
     }
 
     fun createOffer() {
-        Logger.debug(TAG, "createOffer")
+        Logger.debug(TAG, "createOffer()")
 
         executor.execute {
             isInitiator = true
@@ -407,7 +426,7 @@ class PeerConnectionClient(
     }
 
     fun createAnswer() {
-        Logger.debug(TAG, "createAnswer")
+        Logger.debug(TAG, "createAnswer()")
 
         executor.execute {
             isInitiator = false
@@ -425,16 +444,19 @@ class PeerConnectionClient(
         rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.RELAY
 
         val peerConnectionObserver = object : PeerConnection.Observer {
-            override fun onAddTrack(rtpReceiver: RtpReceiver?, mediaStreams: Array<out MediaStream>?) {
-                Logger.debug(TAG, "onAddTrack: $rtpReceiver")
+            override fun onAddTrack(
+                rtpReceiver: RtpReceiver?,
+                mediaStreams: Array<out MediaStream>?
+            ) {
+                Logger.debug(TAG, "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: $mediaStreams")
             }
 
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
-                Logger.debug(TAG, "onSignalingChange: $signalingState")
+                Logger.debug(TAG, "onSignalingChange() -> signalingState: $signalingState")
             }
 
             override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
-                Logger.debug(TAG, "onIceConnectionChange: $iceConnectionState")
+                Logger.debug(TAG, "onIceConnectionChange() -> iceConnectionState: $iceConnectionState")
 
                 executor.execute {
                     listener?.onIceConnectionChange(iceConnectionState.asWebRTCIceConnectionState())
@@ -442,15 +464,15 @@ class PeerConnectionClient(
             }
 
             override fun onIceConnectionReceivingChange(b: Boolean) {
-                Logger.debug(TAG, "onIceConnectionReceivingChange: $b")
+                Logger.debug(TAG, "onIceConnectionReceivingChange() -> b: $b")
             }
 
             override fun onIceGatheringChange(iceGatheringState: PeerConnection.IceGatheringState) {
-                Logger.debug(TAG, "onIceGatheringChange: $iceGatheringState")
+                Logger.debug(TAG, "onIceGatheringChange() -> iceGatheringState: $iceGatheringState")
             }
 
             override fun onIceCandidate(iceCandidate: IceCandidate) {
-                Logger.debug(TAG, "onIceCandidate: $iceCandidate")
+                Logger.debug(TAG, "onIceCandidate() -> iceCandidate: $iceCandidate")
 
                 executor.execute {
                     listener?.onIceCandidate(iceCandidate.asWebRTCIceCandidate())
@@ -458,11 +480,11 @@ class PeerConnectionClient(
             }
 
             override fun onIceCandidatesRemoved(iceCandidates: Array<IceCandidate>) {
-                Logger.debug(TAG, "onIceCandidatesRemoved: " + iceCandidates.contentToString())
+                Logger.debug(TAG, "onIceCandidatesRemoved() -> iceCandidates: ${iceCandidates.contentToString()}")
             }
 
             override fun onAddStream(mediaStream: MediaStream) {
-                Logger.debug(TAG, "onAddStream -> audioTracks: ${mediaStream.audioTracks.size}, videoTracks: ${mediaStream.videoTracks.size}")
+                Logger.debug(TAG, "onAddStream() -> mediaStream: $mediaStream")
 
                 executor.execute {
                     listener?.onAddRemoteStream(mediaStream)
@@ -470,7 +492,7 @@ class PeerConnectionClient(
             }
 
             override fun onRemoveStream(mediaStream: MediaStream) {
-                Logger.debug(TAG, "onRemoveStream: $mediaStream")
+                Logger.debug(TAG, "onRemoveStream() -> mediaStream: $mediaStream")
 
                 executor.execute {
                     listener?.onRemoveStream(mediaStream)
@@ -478,11 +500,11 @@ class PeerConnectionClient(
             }
 
             override fun onDataChannel(dataChannel: DataChannel) {
-                Logger.debug(TAG, "onDataChannel: $dataChannel")
+                Logger.debug(TAG, "onDataChannel() -> dataChannel: $dataChannel")
             }
 
             override fun onRenegotiationNeeded() {
-                Logger.debug(TAG, "onRenegotiationNeeded")
+                Logger.debug(TAG, "onRenegotiationNeeded()")
 
                 executor.execute {
                     listener?.onRenegotiationNeeded()
@@ -500,6 +522,46 @@ class PeerConnectionClient(
                 }
             }
         }
+    }
+
+    fun setLocalAudioEnabled(isEnabled: Boolean) {
+        executor.execute {
+            isLocalAudioEnabled = isEnabled
+            localAudioTrack?.setEnabled(isLocalAudioEnabled)
+        }
+    }
+
+    fun setRemoteAudioEnabled(isEnabled: Boolean) {
+        executor.execute {
+            isRemoteAudioEnabled = isEnabled
+            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
+        }
+    }
+
+    fun setLocalVideoEnabled(isEnabled: Boolean) {
+        executor.execute {
+            isLocalVideoEnabled = isEnabled
+            localVideoTrack?.setEnabled(isLocalVideoEnabled)
+        }
+    }
+
+    fun setRemoteVideoEnabled(isEnabled: Boolean) {
+        executor.execute {
+            isRemoteVideoEnabled = isEnabled
+            remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
+        }
+    }
+
+    fun setLocalVideoResolutionWidth(width: Int) {
+        localVideoWidth = width
+    }
+
+    fun setLocalVideoResolutionHeight(height: Int) {
+        localVideoHeight = height
+    }
+
+    fun isHDLocalVideo(): Boolean {
+        return isLocalVideoEnabled && localVideoWidth * localVideoHeight >= 1280 * 720
     }
 
     fun removeListeners() {
@@ -520,11 +582,22 @@ class PeerConnectionClient(
         }
 
         isInitiator = false
+
         sdpMediaConstraints = null
-        localSdp = null
-        isCameraEnabled = false
-        isMicrophoneEnabled = false
+
+        localSessionDescription = null
+
+        isLocalAudioEnabled = Configs.LOCAL_AUDIO_ENABLED
+        isLocalVideoEnabled = Configs.LOCAL_VIDEO_ENABLED
+        isRemoteAudioEnabled = Configs.REMOTE_AUDIO_ENABLED
+        isRemoteVideoEnabled = Configs.REMOTE_VIDEO_ENABLED
+
+        localVideoWidth = Configs.VIDEO_RESOLUTION_WIDTH
+        localVideoHeight = Configs.VIDEO_RESOLUTION_HEIGHT
+        localVideoFPS = Configs.FPS
+
         remoteVideoScalingType = null
+
         localVideoSender = null
 
         executor.execute {
@@ -595,7 +668,7 @@ class PeerConnectionClient(
 
             if (sessionDescription == null) return
 
-            if (localSdp != null) {
+            if (localSessionDescription != null) {
                 reportError("Multiple SDP create.")
                 return
             }
@@ -612,11 +685,11 @@ class PeerConnectionClient(
                 false
             )
 
-            localSdp = SessionDescription(sessionDescription.type, sdpDescription)
+            localSessionDescription = SessionDescription(sessionDescription.type, sdpDescription)
 
             executor.execute {
-                Logger.debug(TAG, "Set local SDP from " + localSdp?.type)
-                peerConnection?.setLocalDescription(sdpObserver, localSdp)
+                Logger.debug(TAG, "Set local SDP from " + localSessionDescription?.type)
+                peerConnection?.setLocalDescription(sdpObserver, localSessionDescription)
             }
         }
 
@@ -630,7 +703,7 @@ class PeerConnectionClient(
                     if (peerConnection?.remoteDescription == null) {
                         // We've just set our local SDP so time to send it.
                         Logger.debug(TAG, "Local SDP set successfully")
-                        localSdp?.let {
+                        localSessionDescription?.let {
                             listener?.onLocalDescription(it.asWebRTCSessionDescription())
                         }
                     } else {
@@ -645,7 +718,7 @@ class PeerConnectionClient(
                         // We've just set our local SDP so time to send it, drain
                         // remote and send local ICE candidates.
                         Logger.debug(TAG, "Local SDP set successfully")
-                        localSdp?.let {
+                        localSessionDescription?.let {
                             listener?.onLocalDescription(it.asWebRTCSessionDescription())
                         }
                     } else {
