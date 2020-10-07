@@ -4,7 +4,6 @@ package kz.q19.webrtc
 
 import android.app.Activity
 import android.media.AudioManager
-import android.util.Log
 import kz.q19.domain.model.webrtc.WebRTCIceCandidate
 import kz.q19.domain.model.webrtc.WebRTCSessionDescription
 import kz.q19.webrtc.core.ProxyVideoSink
@@ -65,9 +64,14 @@ class PeerConnectionClient(
     private var localVideoTrack: VideoTrack? = null
     private var remoteVideoTrack: VideoTrack? = null
 
+    private var localVideoSink: ProxyVideoSink? = null
+    private var remoteVideoSink: ProxyVideoSink? = null
+
     private var localSessionDescription: SessionDescription? = null
 
     private var localVideoSender: RtpSender? = null
+
+    private var isSwappedFeeds: Boolean = false
 
     private var isInitiator = false
 
@@ -265,8 +269,8 @@ class PeerConnectionClient(
                 remoteVideoTrack = mediaStream.videoTracks.first()
                 remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
 
-                val remoteVideoSink = ProxyVideoSink()
-                remoteVideoSink.setTarget(remoteWebRTCSurfaceView)
+                remoteVideoSink = ProxyVideoSink()
+                remoteVideoSink?.setTarget(remoteWebRTCSurfaceView)
                 remoteVideoTrack?.addSink(remoteVideoSink)
             }
         }
@@ -301,17 +305,20 @@ class PeerConnectionClient(
         )
 
         localVideoCapturer?.startCapture(
-            Configs.VIDEO_RESOLUTION_WIDTH,
-            Configs.VIDEO_RESOLUTION_HEIGHT,
-            Configs.FPS
+            localVideoWidth,
+            localVideoHeight,
+            localVideoFPS
         )
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(Configs.VIDEO_TRACK_ID, localVideoSource)
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(
+            Configs.VIDEO_TRACK_ID,
+            localVideoSource
+        )
         localVideoTrack?.setEnabled(isLocalVideoEnabled)
 
-        val videoSink = ProxyVideoSink()
-        videoSink.setTarget(localWebRTCSurfaceView)
-        localVideoTrack?.addSink(videoSink)
+        localVideoSink = ProxyVideoSink()
+        localVideoSink?.setTarget(localWebRTCSurfaceView)
+        localVideoTrack?.addSink(localVideoSink)
 
         return localVideoTrack
     }
@@ -319,7 +326,10 @@ class PeerConnectionClient(
     private fun createAudioTrack(): AudioTrack? {
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(Configs.AUDIO_TRACK_ID, localAudioSource)
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(
+            Configs.AUDIO_TRACK_ID,
+            localAudioSource
+        )
         localAudioTrack?.setEnabled(isLocalAudioEnabled)
 
         return localAudioTrack
@@ -564,6 +574,29 @@ class PeerConnectionClient(
         return isLocalVideoEnabled && localVideoWidth * localVideoHeight >= 1280 * 720
     }
 
+    fun setLocalTextureSize(textureWidth: Int, textureHeight: Int) {
+        surfaceTextureHelper?.setTextureSize(textureWidth, textureHeight)
+
+    }
+
+    fun changeCaptureFormat(width: Int, height: Int, fps: Int) {
+        executor.execute {
+            changeCaptureFormatInternal(width, height, fps)
+        }
+    }
+
+    private fun changeCaptureFormatInternal(width: Int, height: Int, fps: Int) {
+        Logger.debug(TAG, "changeCaptureFormat: " + width + "x" + height + "@" + fps)
+        localVideoSource?.adaptOutputFormat(width, height, fps)
+    }
+
+    private fun setSwappedFeeds(isSwappedFeeds: Boolean) {
+        Logger.debug(TAG, "setSwappedFeeds() -> isSwappedFeeds: $isSwappedFeeds")
+        this.isSwappedFeeds = isSwappedFeeds
+        localVideoSink?.setTarget(if (isSwappedFeeds) remoteWebRTCSurfaceView else localWebRTCSurfaceView)
+        remoteVideoSink?.setTarget(if (isSwappedFeeds) localWebRTCSurfaceView else remoteWebRTCSurfaceView)
+    }
+
     fun removeListeners() {
         listener = null
     }
@@ -655,7 +688,7 @@ class PeerConnectionClient(
     }
 
     private fun reportError(errorMessage: String) {
-        Log.e(TAG, "PeerConnection error: $errorMessage")
+        Logger.error(TAG, "PeerConnection error: $errorMessage")
         executor.execute {
             listener?.onPeerConnectionError(errorMessage)
         }
