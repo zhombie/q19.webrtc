@@ -590,7 +590,7 @@ class PeerConnectionClient(
         localVideoSource?.adaptOutputFormat(width, height, fps)
     }
 
-    private fun setSwappedFeeds(isSwappedFeeds: Boolean) {
+    fun setSwappedFeeds(isSwappedFeeds: Boolean) {
         Logger.debug(TAG, "setSwappedFeeds() -> isSwappedFeeds: $isSwappedFeeds")
         this.isSwappedFeeds = isSwappedFeeds
         localVideoSink?.setTarget(if (isSwappedFeeds) remoteWebRTCSurfaceView else localWebRTCSurfaceView)
