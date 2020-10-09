@@ -576,7 +576,6 @@ class PeerConnectionClient(
 
     fun setLocalTextureSize(textureWidth: Int, textureHeight: Int) {
         surfaceTextureHelper?.setTextureSize(textureWidth, textureHeight)
-
     }
 
     fun changeCaptureFormat(width: Int, height: Int, fps: Int) {
