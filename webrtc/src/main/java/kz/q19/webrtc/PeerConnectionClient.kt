@@ -12,6 +12,7 @@ import kz.q19.webrtc.core.WebRTCSurfaceView
 import kz.q19.webrtc.utils.*
 import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -85,8 +86,11 @@ class PeerConnectionClient(
     fun createPeerConnection(
         setupParams: SetupParams,
         listener: Listener? = null
-    ) {
-        Logger.debug(TAG, "createPeerConnection() -> setupParams: $setupParams, listener: $listener")
+    ): PeerConnection? {
+        Logger.debug(
+            TAG,
+            "createPeerConnection() -> setupParams: $setupParams, listener: $listener"
+        )
 
         isLocalAudioEnabled = setupParams.isLocalAudioEnabled
         isLocalVideoEnabled = setupParams.isLocalVideoEnabled
@@ -110,7 +114,7 @@ class PeerConnectionClient(
 
         sdpMediaConstraints = buildMediaConstraints()
 
-        executor.execute {
+        val future = executor.submit(Callable {
             val initializationOptions = PeerConnectionFactory.InitializationOptions
                 .builder(activity)
                 .setEnableInternalTracer(true)
@@ -144,7 +148,11 @@ class PeerConnectionClient(
                 .createPeerConnectionFactory()
 
             peerConnection = peerConnectionFactory?.let { createPeerConnectionInternally(it) }
-        }
+
+            return@Callable peerConnection
+        })
+
+        return future.get()
     }
 
     private fun buildMediaConstraints(): MediaConstraints {
@@ -182,7 +190,10 @@ class PeerConnectionClient(
     }
 
     fun setLocalSurfaceView(localWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(TAG, "setLocalSurfaceView() -> localWebRTCSurfaceView: $localWebRTCSurfaceView")
+        Logger.debug(
+            TAG,
+            "setLocalSurfaceView() -> localWebRTCSurfaceView: $localWebRTCSurfaceView"
+        )
 
         this.localWebRTCSurfaceView = localWebRTCSurfaceView
     }
@@ -206,7 +217,10 @@ class PeerConnectionClient(
     }
 
     fun setRemoteSurfaceView(remoteWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(TAG, "setRemoteSurfaceView() -> remoteWebRTCSurfaceView: $remoteWebRTCSurfaceView")
+        Logger.debug(
+            TAG,
+            "setRemoteSurfaceView() -> remoteWebRTCSurfaceView: $remoteWebRTCSurfaceView"
+        )
 
         this.remoteWebRTCSurfaceView = remoteWebRTCSurfaceView
     }
@@ -301,7 +315,10 @@ class PeerConnectionClient(
         activity.runOnUiThread {
             audioManager = AppRTCAudioManager.create(activity)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
-                Logger.debug(TAG, "onAudioManagerDevicesChanged(): $availableAudioDevices, selected: $selectedAudioDevice")
+                Logger.debug(
+                    TAG,
+                    "onAudioManagerDevicesChanged(): $availableAudioDevices, selected: $selectedAudioDevice"
+                )
             }
         }
 
@@ -435,7 +452,10 @@ class PeerConnectionClient(
     }
 
     fun setRemoteDescription(webRTCSessionDescription: WebRTCSessionDescription) {
-        Logger.debug(TAG, "setRemoteDescription() -> webRTCSessionDescription: $webRTCSessionDescription")
+        Logger.debug(
+            TAG,
+            "setRemoteDescription() -> webRTCSessionDescription: $webRTCSessionDescription"
+        )
 
         executor.execute {
             var sdpDescription = CodecUtils.preferCodec(
@@ -493,7 +513,10 @@ class PeerConnectionClient(
                 rtpReceiver: RtpReceiver?,
                 mediaStreams: Array<out MediaStream>?
             ) {
-                Logger.debug(TAG, "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: ${mediaStreams.contentToString()}")
+                Logger.debug(
+                    TAG,
+                    "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: ${mediaStreams.contentToString()}"
+                )
             }
 
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
@@ -501,7 +524,10 @@ class PeerConnectionClient(
             }
 
             override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
-                Logger.debug(TAG, "onIceConnectionChange() -> iceConnectionState: $iceConnectionState")
+                Logger.debug(
+                    TAG,
+                    "onIceConnectionChange() -> iceConnectionState: $iceConnectionState"
+                )
 
                 executor.execute {
                     listener?.onIceConnectionChange(iceConnectionState.asWebRTCIceConnectionState())
@@ -525,7 +551,10 @@ class PeerConnectionClient(
             }
 
             override fun onIceCandidatesRemoved(iceCandidates: Array<IceCandidate>) {
-                Logger.debug(TAG, "onIceCandidatesRemoved() -> iceCandidates: ${iceCandidates.contentToString()}")
+                Logger.debug(
+                    TAG,
+                    "onIceCandidatesRemoved() -> iceCandidates: ${iceCandidates.contentToString()}"
+                )
             }
 
             override fun onAddStream(mediaStream: MediaStream) {
