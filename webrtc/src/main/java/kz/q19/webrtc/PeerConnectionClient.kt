@@ -56,6 +56,7 @@ class PeerConnectionClient(
     private var surfaceTextureHelper: SurfaceTextureHelper? = null
 
     private var localMediaStream: MediaStream? = null
+    private var remoteMediaStream: MediaStream? = null
 
     private var localVideoCapturer: VideoCapturer? = null
 
@@ -149,35 +150,29 @@ class PeerConnectionClient(
     private fun buildMediaConstraints(): MediaConstraints {
         val mediaConstraints = MediaConstraints()
 
-        if (isLocalAudioEnabled) {
+        if (isRemoteAudioEnabled) {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair(
-                    "OfferToReceiveAudio",
-                    "true"
-                )
+                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true")
             )
         } else {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair(
-                    "OfferToReceiveAudio",
-                    "false"
-                )
+                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
             )
         }
 
-        if (isLocalVideoEnabled) {
+        if (isRemoteVideoEnabled) {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair(
-                    "OfferToReceiveVideo",
-                    "true"
-                )
+                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true")
             )
         } else {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair(
-                    "OfferToReceiveVideo",
-                    "false"
-                )
+                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
+            )
+        }
+
+        if (isLocalAudioEnabled) {
+            mediaConstraints.mandatory.add(
+                MediaConstraints.KeyValuePair("levelControl", "true")
             )
         }
 
@@ -245,19 +240,25 @@ class PeerConnectionClient(
             findVideoSender()
         }
 
-        if (!localMediaStream?.audioTracks.isNullOrEmpty() || !localMediaStream?.videoTracks.isNullOrEmpty()) {
-            peerConnection?.addStream(localMediaStream)
+        if (isLocalAudioEnabled && isLocalVideoEnabled) {
+            if (!localMediaStream?.audioTracks.isNullOrEmpty() || !localMediaStream?.videoTracks.isNullOrEmpty()) {
+                peerConnection?.addStream(localMediaStream)
 
-            startAudioManager()
+                startAudioManager()
+            }
         }
     }
 
     fun addRemoteStreamToPeer(mediaStream: MediaStream) {
         Logger.debug(TAG, "addRemoteStreamToPeer() -> mediaStream: $mediaStream")
 
-        if (mediaStream.audioTracks.isNotEmpty()) {
-            remoteAudioTrack = mediaStream.audioTracks.first()
-            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
+        remoteMediaStream = mediaStream
+
+        if (isRemoteAudioEnabled) {
+            if (mediaStream.audioTracks.isNotEmpty()) {
+                remoteAudioTrack = mediaStream.audioTracks.first()
+                remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
+            }
         }
 
         if (isRemoteVideoEnabled) {
@@ -458,7 +459,7 @@ class PeerConnectionClient(
                 rtpReceiver: RtpReceiver?,
                 mediaStreams: Array<out MediaStream>?
             ) {
-                Logger.debug(TAG, "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: $mediaStreams")
+                Logger.debug(TAG, "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: ${mediaStreams.contentToString()}")
             }
 
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
@@ -562,6 +563,30 @@ class PeerConnectionClient(
         }
     }
 
+    fun addStream(mediaStream: MediaStream) {
+        peerConnection?.addStream(mediaStream)
+    }
+
+    fun removeStream(mediaStream: MediaStream) {
+        peerConnection?.removeStream(mediaStream)
+    }
+
+    fun removeMediaStreamTrack(mediaStreamTrack: MediaStreamTrack) {
+        if (mediaStreamTrack.kind() == MediaStreamTrack.AUDIO_TRACK_KIND) {
+            remoteMediaStream?.removeTrack(remoteAudioTrack)
+        } else if (mediaStreamTrack.kind() == MediaStreamTrack.VIDEO_TRACK_KIND) {
+            remoteMediaStream?.removeTrack(remoteVideoTrack)
+        }
+    }
+
+    fun setLocalAudioTrackVolume(volume: Double) {
+        localAudioTrack?.setVolume(volume)
+    }
+
+    fun setRemoteAudioTrackVolume(volume: Double) {
+        remoteAudioTrack?.setVolume(volume)
+    }
+
     fun setLocalVideoResolutionWidth(width: Int) {
         localVideoWidth = width
     }
@@ -651,6 +676,8 @@ class PeerConnectionClient(
 
     //        localMediaStream?.dispose()
             localMediaStream = null
+
+            remoteMediaStream = null
 
             Logger.debug(TAG, "Closing peer connection factory.")
             peerConnectionFactory?.dispose()

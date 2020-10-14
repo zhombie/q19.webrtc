@@ -9,7 +9,7 @@ object Configs {
 
     var VIDEO_RESOLUTION_WIDTH: Int = 1024
     var VIDEO_RESOLUTION_HEIGHT: Int = 768
-    var FPS: Int = 24
+    var FPS: Int = 30
 
     const val AUDIO_TRACK_ID: String = "ARDAMSa0"
     const val VIDEO_TRACK_ID: String = "ARDAMSv0"
