@@ -86,7 +86,7 @@ class PeerConnectionClient(
         setupParams: SetupParams,
         listener: Listener? = null
     ) {
-        Logger.debug(TAG, "createPeerConnection")
+        Logger.debug(TAG, "createPeerConnection() -> setupParams: $setupParams, listener: $listener")
 
         isLocalAudioEnabled = setupParams.isLocalAudioEnabled
         isLocalVideoEnabled = setupParams.isLocalVideoEnabled
@@ -148,6 +148,8 @@ class PeerConnectionClient(
     }
 
     private fun buildMediaConstraints(): MediaConstraints {
+        Logger.debug(TAG, "buildMediaConstraints()")
+
         val mediaConstraints = MediaConstraints()
 
         if (isRemoteAudioEnabled) {
@@ -180,13 +182,19 @@ class PeerConnectionClient(
     }
 
     fun setLocalSurfaceView(localWebRTCSurfaceView: WebRTCSurfaceView?) {
+        Logger.debug(TAG, "setLocalSurfaceView() -> localWebRTCSurfaceView: $localWebRTCSurfaceView")
+
         this.localWebRTCSurfaceView = localWebRTCSurfaceView
     }
 
     fun initLocalCameraStream(isMirrored: Boolean = false) {
-        Logger.debug(TAG, "initLocalStream")
+        Logger.debug(TAG, "initLocalCameraStream() -> isMirrored: $isMirrored")
 
         if (isLocalVideoEnabled) {
+            if (localWebRTCSurfaceView == null) {
+                throw NullPointerException("Local SurfaceViewRenderer is null.")
+            }
+
             activity.runOnUiThread {
                 localWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
                 localWebRTCSurfaceView?.setEnableHardwareScaler(true)
@@ -198,11 +206,19 @@ class PeerConnectionClient(
     }
 
     fun setRemoteSurfaceView(remoteWebRTCSurfaceView: WebRTCSurfaceView?) {
+        Logger.debug(TAG, "setRemoteSurfaceView() -> remoteWebRTCSurfaceView: $remoteWebRTCSurfaceView")
+
         this.remoteWebRTCSurfaceView = remoteWebRTCSurfaceView
     }
 
     fun initRemoteCameraStream(isMirrored: Boolean = false) {
+        Logger.debug(TAG, "initRemoteCameraStream() -> isMirrored: $isMirrored")
+
         if (isRemoteVideoEnabled) {
+            if (remoteWebRTCSurfaceView == null) {
+                throw NullPointerException("Local SurfaceViewRenderer is null.")
+            }
+
             activity.runOnUiThread {
                 remoteWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
                 remoteWebRTCSurfaceView?.setEnableHardwareScaler(true)
@@ -215,6 +231,8 @@ class PeerConnectionClient(
     }
 
     fun switchScalingType() {
+        Logger.debug(TAG, "switchScalingType()")
+
         activity.runOnUiThread {
             remoteVideoScalingType = if (remoteVideoScalingType == ScalingType.SCALE_ASPECT_FILL) {
                 ScalingType.SCALE_ASPECT_FIT
@@ -278,6 +296,8 @@ class PeerConnectionClient(
     }
 
     private fun startAudioManager() {
+        Logger.debug(TAG, "startAudioManager()")
+
         activity.runOnUiThread {
             audioManager = AppRTCAudioManager.create(activity)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
@@ -289,6 +309,8 @@ class PeerConnectionClient(
     }
 
     private fun createVideoTrack(): VideoTrack? {
+        Logger.debug(TAG, "createVideoTrack()")
+
         if (localWebRTCSurfaceView == null) {
             throw NullPointerException("Local SurfaceViewRenderer is null.")
         }
@@ -325,6 +347,8 @@ class PeerConnectionClient(
     }
 
     private fun createAudioTrack(): AudioTrack? {
+        Logger.debug(TAG, "createAudioTrack()")
+
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
         localAudioTrack = peerConnectionFactory?.createAudioTrack(
@@ -337,6 +361,8 @@ class PeerConnectionClient(
     }
 
     private fun createVideoCapturer(): VideoCapturer? {
+        Logger.debug(TAG, "createVideoCapturer()")
+
         return if (useCamera2()) {
             createCameraCapturer(Camera2Enumerator(activity))
         } else {
@@ -345,6 +371,8 @@ class PeerConnectionClient(
     }
 
     private fun createCameraCapturer(enumerator: CameraEnumerator): VideoCapturer? {
+        Logger.debug(TAG, "createCameraCapturer() -> enumerator: $enumerator")
+
         val deviceNames = enumerator.deviceNames
         // find the front facing camera and return it.
         deviceNames
@@ -357,9 +385,11 @@ class PeerConnectionClient(
     private fun useCamera2(): Boolean = Camera2Enumerator.isSupported(activity)
 
     private fun findVideoSender() {
+        Logger.debug(TAG, "findVideoSender()")
+
         peerConnection?.let {
             for (sender in it.senders) {
-                if (sender.track()?.kind() == "video") {
+                if (sender.track()?.kind() == MediaStreamTrack.VIDEO_TRACK_KIND) {
                     Logger.debug(TAG, "Found video sender.")
                     localVideoSender = sender
                 }
@@ -368,6 +398,8 @@ class PeerConnectionClient(
     }
 
     fun setVideoMaxBitrate(maxBitrateKbps: Int?) {
+        Logger.debug(TAG, "setVideoMaxBitrate() -> maxBitrateKbps: $maxBitrateKbps")
+
         executor.execute {
             if (peerConnection == null || localVideoSender == null) {
                 return@execute
@@ -446,6 +478,8 @@ class PeerConnectionClient(
     }
 
     private fun createPeerConnectionInternally(factory: PeerConnectionFactory): PeerConnection? {
+        Logger.debug(TAG, "createPeerConnectionInternally() -> factory: $factory")
+
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
 
         rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED
@@ -616,7 +650,9 @@ class PeerConnectionClient(
 
     fun setSwappedFeeds(isSwappedFeeds: Boolean) {
         Logger.debug(TAG, "setSwappedFeeds() -> isSwappedFeeds: $isSwappedFeeds")
+
         this.isSwappedFeeds = isSwappedFeeds
+
         localVideoSink?.setTarget(if (isSwappedFeeds) remoteWebRTCSurfaceView else localWebRTCSurfaceView)
         remoteVideoSink?.setTarget(if (isSwappedFeeds) localWebRTCSurfaceView else remoteWebRTCSurfaceView)
     }
