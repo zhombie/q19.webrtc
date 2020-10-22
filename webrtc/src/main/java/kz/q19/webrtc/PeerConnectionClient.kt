@@ -99,11 +99,21 @@ class PeerConnectionClient(
 
         eglBase = EglBase.create()
 
-        iceServers = setupParams.iceServers.map {
-            PeerConnection.IceServer.builder(it.url)
-                .setUsername(it.username)
-                .setPassword(it.credential)
-                .createIceServer()
+        if (setupParams.iceServers.any { it.url.isNullOrBlank() || it.urls.isNullOrBlank() }) {
+            iceServers = emptyList()
+        } else {
+            iceServers = setupParams.iceServers.map {
+                val builder = if (!it.url.isNullOrBlank()) {
+                    PeerConnection.IceServer.builder(it.url)
+                } else if (!it.urls.isNullOrBlank()) {
+                    PeerConnection.IceServer.builder(it.urls)
+                } else {
+                    throw IllegalStateException("url || urls is null or blank. Please provide anything.")
+                }
+                builder.setUsername(it.username ?: "")
+                builder.setPassword(it.credential ?: "")
+                builder.createIceServer()
+            }
         }
 
         this.listener = listener
@@ -283,6 +293,14 @@ class PeerConnectionClient(
 
     fun addRemoteStreamToPeer(mediaStream: MediaStream) {
         Logger.debug(TAG, "addRemoteStreamToPeer() -> mediaStream: $mediaStream")
+
+        try {
+            val id = mediaStream.id
+            Logger.debug(TAG, "addRemoteStreamToPeer() [MediaStream exists] -> id: $id")
+        } catch (e: IllegalStateException) {
+            Logger.debug(TAG, "addRemoteStreamToPeer() [MediaStream does not exist]")
+            return
+        }
 
         remoteMediaStream = mediaStream
 
@@ -500,7 +518,7 @@ class PeerConnectionClient(
     private fun createPeerConnectionInternally(factory: PeerConnectionFactory): PeerConnection? {
         Logger.debug(TAG, "createPeerConnectionInternally() -> factory: $factory")
 
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers ?: emptyList())
 
         rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED
         rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
