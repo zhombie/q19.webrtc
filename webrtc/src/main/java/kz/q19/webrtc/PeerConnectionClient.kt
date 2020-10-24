@@ -704,6 +704,14 @@ class PeerConnectionClient(
         remoteVideoSink?.setTarget(if (isSwappedFeeds) localWebRTCSurfaceView else remoteWebRTCSurfaceView)
     }
 
+    fun pauseLocalVideoStream() {
+        localWebRTCSurfaceView?.pauseVideo()
+    }
+
+    fun pauseRemoteVideoStream() {
+        remoteWebRTCSurfaceView?.pauseVideo()
+    }
+
     fun removeListeners() {
         listener = null
     }
