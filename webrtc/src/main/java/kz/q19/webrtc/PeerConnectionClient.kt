@@ -712,6 +712,18 @@ class PeerConnectionClient(
         remoteWebRTCSurfaceView?.pauseVideo()
     }
 
+    fun startLocalVideoCapture() {
+        localVideoCapturer?.startCapture(
+            localVideoWidth,
+            localVideoHeight,
+            localVideoFPS
+        )
+    }
+
+    fun stopLocalVideoCapture() {
+        localVideoCapturer?.stopCapture()
+    }
+
     fun removeListeners() {
         listener = null
     }
