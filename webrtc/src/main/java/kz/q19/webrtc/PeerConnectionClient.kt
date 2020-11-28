@@ -172,38 +172,30 @@ class PeerConnectionClient(
 
         if (isRemoteAudioEnabled) {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true")
-            )
+                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
         } else {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
-            )
+                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
         }
 
         if (isRemoteVideoEnabled) {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true")
-            )
+                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         } else {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
-            )
+                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
         }
 
-        if (isLocalAudioEnabled) {
+        if (isLocalAudioEnabled || isRemoteAudioEnabled) {
             mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("levelControl", "true")
-            )
+                MediaConstraints.KeyValuePair("levelControl", "true"))
         }
 
         return mediaConstraints
     }
 
     fun setLocalSurfaceView(localWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(
-            TAG,
-            "setLocalSurfaceView() -> localWebRTCSurfaceView: $localWebRTCSurfaceView"
-        )
+        Logger.debug(TAG, "setLocalSurfaceView() -> $localWebRTCSurfaceView")
 
         this.localWebRTCSurfaceView = localWebRTCSurfaceView
     }
@@ -227,10 +219,7 @@ class PeerConnectionClient(
     }
 
     fun setRemoteSurfaceView(remoteWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(
-            TAG,
-            "setRemoteSurfaceView() -> remoteWebRTCSurfaceView: $remoteWebRTCSurfaceView"
-        )
+        Logger.debug(TAG, "setRemoteSurfaceView() -> $remoteWebRTCSurfaceView")
 
         this.remoteWebRTCSurfaceView = remoteWebRTCSurfaceView
     }
@@ -285,10 +274,10 @@ class PeerConnectionClient(
         if (isLocalAudioEnabled && isLocalVideoEnabled) {
             if (!localMediaStream?.audioTracks.isNullOrEmpty() || !localMediaStream?.videoTracks.isNullOrEmpty()) {
                 peerConnection?.addStream(localMediaStream)
-
-                startAudioManager()
             }
         }
+
+        startAudioManager()
     }
 
     fun addRemoteStreamToPeer(mediaStream: MediaStream) {
@@ -304,26 +293,22 @@ class PeerConnectionClient(
 
         remoteMediaStream = mediaStream
 
-        if (isRemoteAudioEnabled) {
-            if (mediaStream.audioTracks.isNotEmpty()) {
-                remoteAudioTrack = mediaStream.audioTracks.first()
-                remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
-            }
+        if (mediaStream.audioTracks.isNotEmpty()) {
+            remoteAudioTrack = mediaStream.audioTracks.first()
+            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
         }
 
-        if (isRemoteVideoEnabled) {
-            if (remoteWebRTCSurfaceView == null) {
-                throw NullPointerException("Remote SurfaceViewRenderer is null.")
-            }
+        if (remoteWebRTCSurfaceView == null) {
+            throw NullPointerException("Remote SurfaceViewRenderer is null.")
+        }
 
-            if (mediaStream.videoTracks.isNotEmpty()) {
-                remoteVideoTrack = mediaStream.videoTracks.first()
-                remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
+        if (mediaStream.videoTracks.isNotEmpty()) {
+            remoteVideoTrack = mediaStream.videoTracks.first()
+            remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
 
-                remoteVideoSink = ProxyVideoSink()
-                remoteVideoSink?.setTarget(remoteWebRTCSurfaceView)
-                remoteVideoTrack?.addSink(remoteVideoSink)
-            }
+            remoteVideoSink = ProxyVideoSink()
+            remoteVideoSink?.setTarget(remoteWebRTCSurfaceView)
+            remoteVideoTrack?.addSink(remoteVideoSink)
         }
     }
 
@@ -333,10 +318,7 @@ class PeerConnectionClient(
         activity.runOnUiThread {
             audioManager = AppRTCAudioManager.create(activity)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
-                Logger.debug(
-                    TAG,
-                    "onAudioManagerDevicesChanged(): $availableAudioDevices, selected: $selectedAudioDevice"
-                )
+                Logger.debug(TAG, "audioManager: $availableAudioDevices, $selectedAudioDevice")
             }
         }
 
@@ -356,22 +338,11 @@ class PeerConnectionClient(
 
         localVideoCapturer = createVideoCapturer()
 
-        localVideoCapturer?.initialize(
-            surfaceTextureHelper,
-            activity,
-            localVideoSource?.capturerObserver
-        )
+        localVideoCapturer?.initialize(surfaceTextureHelper, activity, localVideoSource?.capturerObserver)
 
-        localVideoCapturer?.startCapture(
-            localVideoWidth,
-            localVideoHeight,
-            localVideoFPS
-        )
+        localVideoCapturer?.startCapture(localVideoWidth, localVideoHeight, localVideoFPS)
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(
-            Configs.VIDEO_TRACK_ID,
-            localVideoSource
-        )
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(Configs.VIDEO_TRACK_ID, localVideoSource)
         localVideoTrack?.setEnabled(isLocalVideoEnabled)
 
         localVideoSink = ProxyVideoSink()
@@ -386,10 +357,7 @@ class PeerConnectionClient(
 
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(
-            Configs.AUDIO_TRACK_ID,
-            localAudioSource
-        )
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(Configs.AUDIO_TRACK_ID, localAudioSource)
         localAudioTrack?.setEnabled(isLocalAudioEnabled)
 
         return localAudioTrack
@@ -470,10 +438,7 @@ class PeerConnectionClient(
     }
 
     fun setRemoteDescription(webRTCSessionDescription: WebRTCSessionDescription) {
-        Logger.debug(
-            TAG,
-            "setRemoteDescription() -> webRTCSessionDescription: $webRTCSessionDescription"
-        )
+        Logger.debug(TAG, "setRemoteDescription() -> sdp: $webRTCSessionDescription")
 
         executor.execute {
             var sdpDescription = CodecUtils.preferCodec(
@@ -531,21 +496,15 @@ class PeerConnectionClient(
                 rtpReceiver: RtpReceiver?,
                 mediaStreams: Array<out MediaStream>?
             ) {
-                Logger.debug(
-                    TAG,
-                    "onAddTrack() -> rtpReceiver: $rtpReceiver, mediaStreams: ${mediaStreams.contentToString()}"
-                )
+                Logger.debug(TAG, "onAddTrack() -> $rtpReceiver, ${mediaStreams.contentToString()}")
             }
 
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
-                Logger.debug(TAG, "onSignalingChange() -> signalingState: $signalingState")
+                Logger.debug(TAG, "onSignalingChange() -> $signalingState")
             }
 
             override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
-                Logger.debug(
-                    TAG,
-                    "onIceConnectionChange() -> iceConnectionState: $iceConnectionState"
-                )
+                Logger.debug(TAG, "onIceConnectionChange() -> $iceConnectionState")
 
                 executor.execute {
                     listener?.onIceConnectionChange(iceConnectionState.asWebRTCIceConnectionState())
@@ -569,10 +528,7 @@ class PeerConnectionClient(
             }
 
             override fun onIceCandidatesRemoved(iceCandidates: Array<IceCandidate>) {
-                Logger.debug(
-                    TAG,
-                    "onIceCandidatesRemoved() -> iceCandidates: ${iceCandidates.contentToString()}"
-                )
+                Logger.debug(TAG, "onIceCandidatesRemoved() -> ${iceCandidates.contentToString()}")
             }
 
             override fun onAddStream(mediaStream: MediaStream) {
@@ -713,11 +669,7 @@ class PeerConnectionClient(
     }
 
     fun startLocalVideoCapture() {
-        localVideoCapturer?.startCapture(
-            localVideoWidth,
-            localVideoHeight,
-            localVideoFPS
-        )
+        localVideoCapturer?.startCapture(localVideoWidth, localVideoHeight, localVideoFPS)
     }
 
     fun stopLocalVideoCapture() {
