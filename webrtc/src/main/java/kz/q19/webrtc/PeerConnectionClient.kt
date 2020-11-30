@@ -170,26 +170,16 @@ class PeerConnectionClient(
 
         val mediaConstraints = MediaConstraints()
 
-        if (isRemoteAudioEnabled) {
-            mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+//        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
+
+        if (isLocalVideoEnabled || isRemoteVideoEnabled) {
+            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         } else {
-            mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
+            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
         }
 
-        if (isRemoteVideoEnabled) {
-            mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
-        } else {
-            mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
-        }
-
-        if (isLocalAudioEnabled || isRemoteAudioEnabled) {
-            mediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("levelControl", "true"))
-        }
+        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("levelControl", "true"))
 
         return mediaConstraints
     }
@@ -271,10 +261,8 @@ class PeerConnectionClient(
             findVideoSender()
         }
 
-        if (isLocalAudioEnabled && isLocalVideoEnabled) {
-            if (!localMediaStream?.audioTracks.isNullOrEmpty() || !localMediaStream?.videoTracks.isNullOrEmpty()) {
-                peerConnection?.addStream(localMediaStream)
-            }
+        if (localMediaStream != null) {
+            peerConnection?.addStream(localMediaStream)
         }
 
         startAudioManager()
