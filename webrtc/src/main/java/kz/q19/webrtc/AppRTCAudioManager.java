@@ -35,7 +35,7 @@ import kz.q19.webrtc.utils.ThreadUtils;
 /**
  * AppRTCAudioManager manages all audio related parts.
  */
-class AppRTCAudioManager {
+public class AppRTCAudioManager {
 
   private static final String TAG = "AppRTCAudioManager";
 

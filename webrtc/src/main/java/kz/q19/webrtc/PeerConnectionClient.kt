@@ -4,11 +4,15 @@ package kz.q19.webrtc
 
 import android.app.Activity
 import android.media.AudioManager
-import kz.q19.domain.model.webrtc.WebRTCIceCandidate
-import kz.q19.domain.model.webrtc.WebRTCSessionDescription
+import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.core.ProxyVideoSink
-import kz.q19.webrtc.core.WebRTCIceConnectionState
-import kz.q19.webrtc.core.WebRTCSurfaceView
+import kz.q19.webrtc.core.SurfaceViewRenderer
+import kz.q19.webrtc.mapper.*
+import kz.q19.webrtc.mapper.AdapterTypeMapper
+import kz.q19.webrtc.mapper.IceCandidateMapper
+import kz.q19.webrtc.mapper.IceConnectionStateMapper
+import kz.q19.webrtc.mapper.ScalingTypeMapper
+import kz.q19.webrtc.mapper.SessionDescriptionMapper
 import kz.q19.webrtc.utils.*
 import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
@@ -18,12 +22,12 @@ import java.util.concurrent.Executors
 
 class PeerConnectionClient(
     private val activity: Activity,
-    private var localWebRTCSurfaceView: WebRTCSurfaceView? = null,
-    private var remoteWebRTCSurfaceView: WebRTCSurfaceView? = null
+    private var localSurfaceViewRenderer: SurfaceViewRenderer? = null,
+    private var remoteSurfaceViewRenderer: SurfaceViewRenderer? = null
 ) {
 
     companion object {
-        private const val TAG = "PeerConnectionClient"
+        private val TAG = PeerConnectionClient::class.java.simpleName
     }
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -77,7 +81,7 @@ class PeerConnectionClient(
 
     private var isInitiator = false
 
-    private var audioManager: AppRTCAudioManager? = null
+    var audioManager: AppRTCAudioManager? = null
 
     private var remoteVideoScalingType: ScalingType? = null
 
@@ -87,10 +91,7 @@ class PeerConnectionClient(
         setupParams: SetupParams,
         listener: Listener? = null
     ): PeerConnection? {
-        Logger.debug(
-            TAG,
-            "createPeerConnection() -> setupParams: $setupParams, listener: $listener"
-        )
+        Logger.debug(TAG, "createPeerConnection() -> $setupParams, $listener")
 
         isLocalAudioEnabled = setupParams.isLocalAudioEnabled
         isLocalVideoEnabled = setupParams.isLocalVideoEnabled
@@ -184,66 +185,59 @@ class PeerConnectionClient(
         return mediaConstraints
     }
 
-    fun setLocalSurfaceView(localWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(TAG, "setLocalSurfaceView() -> $localWebRTCSurfaceView")
+    fun setLocalSurfaceView(localSurfaceView: SurfaceViewRenderer?) {
+        Logger.debug(TAG, "setLocalSurfaceView() -> $localSurfaceView")
 
-        this.localWebRTCSurfaceView = localWebRTCSurfaceView
+        this.localSurfaceViewRenderer = localSurfaceView
     }
 
     fun initLocalCameraStream(isMirrored: Boolean = false) {
         Logger.debug(TAG, "initLocalCameraStream() -> isMirrored: $isMirrored")
 
         if (isLocalVideoEnabled) {
-            if (localWebRTCSurfaceView == null) {
+            if (localSurfaceViewRenderer == null) {
                 throw NullPointerException("Local SurfaceViewRenderer is null.")
             }
 
             activity.runOnUiThread {
-                localWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
-                localWebRTCSurfaceView?.setEnableHardwareScaler(true)
-                localWebRTCSurfaceView?.setMirror(isMirrored)
-                localWebRTCSurfaceView?.setZOrderMediaOverlay(true)
-                localWebRTCSurfaceView?.setScalingType(ScalingType.SCALE_ASPECT_FIT)
+                localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
+                localSurfaceViewRenderer?.setEnableHardwareScaler(true)
+                localSurfaceViewRenderer?.setMirror(isMirrored)
+                localSurfaceViewRenderer?.setZOrderMediaOverlay(true)
+                localSurfaceViewRenderer?.setScalingType(ScalingType.SCALE_ASPECT_FIT)
             }
         }
     }
 
-    fun setRemoteSurfaceView(remoteWebRTCSurfaceView: WebRTCSurfaceView?) {
-        Logger.debug(TAG, "setRemoteSurfaceView() -> $remoteWebRTCSurfaceView")
+    fun setRemoteSurfaceView(remoteSurfaceView: SurfaceViewRenderer?) {
+        Logger.debug(TAG, "setRemoteSurfaceView() -> $remoteSurfaceView")
 
-        this.remoteWebRTCSurfaceView = remoteWebRTCSurfaceView
+        this.remoteSurfaceViewRenderer = remoteSurfaceView
     }
 
     fun initRemoteCameraStream(isMirrored: Boolean = false) {
         Logger.debug(TAG, "initRemoteCameraStream() -> isMirrored: $isMirrored")
 
         if (isRemoteVideoEnabled) {
-            if (remoteWebRTCSurfaceView == null) {
+            if (remoteSurfaceViewRenderer == null) {
                 throw NullPointerException("Local SurfaceViewRenderer is null.")
             }
 
             activity.runOnUiThread {
-                remoteWebRTCSurfaceView?.init(eglBase?.eglBaseContext, null)
-                remoteWebRTCSurfaceView?.setEnableHardwareScaler(true)
-                remoteWebRTCSurfaceView?.setMirror(isMirrored)
+                remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
+                remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
+                remoteSurfaceViewRenderer?.setMirror(isMirrored)
 
                 remoteVideoScalingType = ScalingType.SCALE_ASPECT_FILL
-                remoteWebRTCSurfaceView?.setScalingType(remoteVideoScalingType)
+                remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
             }
         }
     }
 
-    fun switchScalingType() {
-        Logger.debug(TAG, "switchScalingType()")
-
-        activity.runOnUiThread {
-            remoteVideoScalingType = if (remoteVideoScalingType == ScalingType.SCALE_ASPECT_FILL) {
-                ScalingType.SCALE_ASPECT_FIT
-            } else {
-                ScalingType.SCALE_ASPECT_FILL
-            }
-            remoteWebRTCSurfaceView?.setScalingType(remoteVideoScalingType)
-            listener?.onRemoteScreenScaleChanged(remoteVideoScalingType == ScalingType.SCALE_ASPECT_FILL)
+    fun setScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
+        return activity.runOnUiThread {
+            remoteVideoScalingType = ScalingTypeMapper.map(scalingType)
+            remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
     }
 
@@ -286,7 +280,7 @@ class PeerConnectionClient(
             remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
         }
 
-        if (remoteWebRTCSurfaceView == null) {
+        if (remoteSurfaceViewRenderer == null) {
             throw NullPointerException("Remote SurfaceViewRenderer is null.")
         }
 
@@ -295,7 +289,7 @@ class PeerConnectionClient(
             remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
 
             remoteVideoSink = ProxyVideoSink()
-            remoteVideoSink?.setTarget(remoteWebRTCSurfaceView)
+            remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
             remoteVideoTrack?.addSink(remoteVideoSink)
         }
     }
@@ -316,7 +310,7 @@ class PeerConnectionClient(
     private fun createVideoTrack(): VideoTrack? {
         Logger.debug(TAG, "createVideoTrack()")
 
-        if (localWebRTCSurfaceView == null) {
+        if (localSurfaceViewRenderer == null) {
             throw NullPointerException("Local SurfaceViewRenderer is null.")
         }
 
@@ -334,7 +328,7 @@ class PeerConnectionClient(
         localVideoTrack?.setEnabled(isLocalVideoEnabled)
 
         localVideoSink = ProxyVideoSink()
-        localVideoSink?.setTarget(localWebRTCSurfaceView)
+        localVideoSink?.setTarget(localSurfaceViewRenderer)
         localVideoTrack?.addSink(localVideoSink)
 
         return localVideoTrack
@@ -417,20 +411,20 @@ class PeerConnectionClient(
         }
     }
 
-    fun addRemoteIceCandidate(webRTCIceCandidate: WebRTCIceCandidate) {
-        Logger.debug(TAG, "addRemoteIceCandidate() -> webRTCIceCandidate: $webRTCIceCandidate")
+    fun addRemoteIceCandidate(iceCandidate: kz.q19.domain.model.webrtc.IceCandidate) {
+        Logger.debug(TAG, "addRemoteIceCandidate() -> iceCandidate: $iceCandidate")
 
         executor.execute {
-            peerConnection?.addIceCandidate(webRTCIceCandidate.asIceCandidate())
+            peerConnection?.addIceCandidate(IceCandidateMapper.map(iceCandidate))
         }
     }
 
-    fun setRemoteDescription(webRTCSessionDescription: WebRTCSessionDescription) {
-        Logger.debug(TAG, "setRemoteDescription() -> sdp: $webRTCSessionDescription")
+    fun setRemoteDescription(sessionDescription: kz.q19.domain.model.webrtc.SessionDescription) {
+        Logger.debug(TAG, "setRemoteDescription() -> sdp: $sessionDescription")
 
         executor.execute {
             var sdpDescription = CodecUtils.preferCodec(
-                webRTCSessionDescription.description,
+                sessionDescription.description,
                 CodecUtils.AUDIO_CODEC_OPUS,
                 true
             )
@@ -445,7 +439,7 @@ class PeerConnectionClient(
 
             peerConnection?.setRemoteDescription(
                 sdpObserver,
-                SessionDescription(webRTCSessionDescription.convertType(), sdpDescription)
+                SessionDescription(SessionDescriptionMapper.map(sessionDescription.type), sdpDescription)
             )
         }
     }
@@ -495,7 +489,7 @@ class PeerConnectionClient(
                 Logger.debug(TAG, "onIceConnectionChange() -> $iceConnectionState")
 
                 executor.execute {
-                    listener?.onIceConnectionChange(iceConnectionState.asWebRTCIceConnectionState())
+                    listener?.onIceConnectionChange(IceConnectionStateMapper.map(iceConnectionState))
                 }
             }
 
@@ -511,7 +505,9 @@ class PeerConnectionClient(
                 Logger.debug(TAG, "onIceCandidate() -> iceCandidate: $iceCandidate")
 
                 executor.execute {
-                    listener?.onIceCandidate(iceCandidate.asWebRTCIceCandidate())
+                    listener?.onIceCandidate(
+                        IceCandidateMapper.map(iceCandidate, AdapterTypeMapper.map(iceCandidate.adapterType))
+                    )
                 }
             }
 
@@ -644,16 +640,16 @@ class PeerConnectionClient(
 
         this.isSwappedFeeds = isSwappedFeeds
 
-        localVideoSink?.setTarget(if (isSwappedFeeds) remoteWebRTCSurfaceView else localWebRTCSurfaceView)
-        remoteVideoSink?.setTarget(if (isSwappedFeeds) localWebRTCSurfaceView else remoteWebRTCSurfaceView)
+        localVideoSink?.setTarget(if (isSwappedFeeds) remoteSurfaceViewRenderer else localSurfaceViewRenderer)
+        remoteVideoSink?.setTarget(if (isSwappedFeeds) localSurfaceViewRenderer else remoteSurfaceViewRenderer)
     }
 
     fun pauseLocalVideoStream() {
-        localWebRTCSurfaceView?.pauseVideo()
+        localSurfaceViewRenderer?.pauseVideo()
     }
 
     fun pauseRemoteVideoStream() {
-        remoteWebRTCSurfaceView?.pauseVideo()
+        remoteSurfaceViewRenderer?.pauseVideo()
     }
 
     fun startLocalVideoCapture() {
@@ -662,6 +658,22 @@ class PeerConnectionClient(
 
     fun stopLocalVideoCapture() {
         localVideoCapturer?.stopCapture()
+    }
+
+    fun getAudioOutputDevices(): Set<AppRTCAudioManager.AudioDevice>? = audioManager?.audioDevices
+
+    fun getSelectedAudioOutputDevice(): AppRTCAudioManager.AudioDevice? = audioManager?.selectedAudioDevice
+
+    fun selectAudioOutputSpeakerPhone() {
+        selectAudioDeviceInternally(AppRTCAudioManager.AudioDevice.SPEAKER_PHONE)
+    }
+
+    fun selectAudioOutputEarpiece() {
+        selectAudioDeviceInternally(AppRTCAudioManager.AudioDevice.EARPIECE)
+    }
+
+    private fun selectAudioDeviceInternally(audioDevice: AppRTCAudioManager.AudioDevice) {
+        audioManager?.selectAudioDevice(audioDevice)
     }
 
     fun removeListeners() {
@@ -732,8 +744,8 @@ class PeerConnectionClient(
 //            PeerConnectionFactory.shutdownInternalTracer()
 
             try {
-                localWebRTCSurfaceView?.release()
-                remoteWebRTCSurfaceView?.release()
+                localSurfaceViewRenderer?.release()
+                remoteSurfaceViewRenderer?.release()
             } catch (e: Exception) {
                 Logger.debug(TAG, "Exception on SurfaceViewRenderer release. $e")
             }
@@ -806,7 +818,7 @@ class PeerConnectionClient(
                         // We've just set our local SDP so time to send it.
                         Logger.debug(TAG, "Local SDP set successfully")
                         localSessionDescription?.let {
-                            listener?.onLocalDescription(it.asWebRTCSessionDescription())
+                            listener?.onLocalDescription(SessionDescriptionMapper.map(it))
                         }
                     } else {
                         // We've just set remote description, so drain remote
@@ -821,7 +833,7 @@ class PeerConnectionClient(
                         // remote and send local ICE candidates.
                         Logger.debug(TAG, "Local SDP set successfully")
                         localSessionDescription?.let {
-                            listener?.onLocalDescription(it.asWebRTCSessionDescription())
+                            listener?.onLocalDescription(SessionDescriptionMapper.map(it))
                         }
                     } else {
                         // We've just set remote SDP - do nothing for now -
@@ -846,17 +858,15 @@ class PeerConnectionClient(
     }
 
     interface Listener {
-        fun onIceCandidate(webRTCIceCandidate: WebRTCIceCandidate)
-        fun onIceConnectionChange(webRTCIceConnectionState: WebRTCIceConnectionState)
+        fun onIceCandidate(iceCandidate: kz.q19.domain.model.webrtc.IceCandidate)
+        fun onIceConnectionChange(iceConnectionState: IceConnectionState)
         fun onRenegotiationNeeded()
-        fun onLocalDescription(webRTCSessionDescription: WebRTCSessionDescription)
+        fun onLocalDescription(sessionDescription: kz.q19.domain.model.webrtc.SessionDescription)
 
         fun onAddRemoteStream(mediaStream: MediaStream)
         fun onRemoveStream(mediaStream: MediaStream)
 
         fun onPeerConnectionError(errorMessage: String)
-
-        fun onRemoteScreenScaleChanged(isFilled: Boolean)
     }
 
 }

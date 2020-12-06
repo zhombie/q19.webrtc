@@ -11,9 +11,9 @@ class ProxyVideoSink(private val tag: String = "ProxyVideoSink") : VideoSink {
     override fun onFrame(frame: VideoFrame?) {
         if (target == null) {
             Logger.debug(tag, "Dropping frame in proxy because target is null.")
-            return
+        } else {
+            target?.onFrame(frame)
         }
-        target?.onFrame(frame)
     }
 
     @Synchronized
