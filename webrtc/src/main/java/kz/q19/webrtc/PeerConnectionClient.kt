@@ -117,6 +117,8 @@ class PeerConnectionClient(
             }
         }
 
+        Logger.debug(TAG, "iceServers: $iceServers")
+
         this.listener = listener
 
         isInitiator = false
