@@ -273,17 +273,17 @@ class PeerConnectionClient(
             remoteAudioTrack?.setEnabled(options.isRemoteAudioEnabled)
         }
 
-        if (remoteSurfaceViewRenderer == null) {
-            throw NullPointerException("Remote SurfaceViewRenderer is null.")
-        }
-
         if (mediaStream.videoTracks.isNotEmpty()) {
             remoteVideoTrack = mediaStream.videoTracks.first()
             remoteVideoTrack?.setEnabled(options.isRemoteVideoEnabled)
 
-            remoteVideoSink = ProxyVideoSink()
-            remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
-            remoteVideoTrack?.addSink(remoteVideoSink)
+            if (remoteSurfaceViewRenderer == null) {
+                Logger.error(TAG, "Remote SurfaceViewRenderer is null.")
+            } else {
+                remoteVideoSink = ProxyVideoSink()
+                remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
+                remoteVideoTrack?.addSink(remoteVideoSink)
+            }
         }
     }
 
