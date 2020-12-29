@@ -32,14 +32,7 @@ class PeerConnectionClient(
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
-    private var localVideoWidth: Int = Configs.VIDEO_RESOLUTION_WIDTH
-    private var localVideoHeight: Int = Configs.VIDEO_RESOLUTION_HEIGHT
-    private var localVideoFPS: Int = Configs.FPS
-
-    private var isLocalAudioEnabled: Boolean = Configs.LOCAL_AUDIO_ENABLED
-    private var isRemoteAudioEnabled: Boolean = Configs.REMOTE_AUDIO_ENABLED
-    private var isLocalVideoEnabled: Boolean = Configs.LOCAL_VIDEO_ENABLED
-    private var isRemoteVideoEnabled: Boolean = Configs.REMOTE_VIDEO_ENABLED
+    private var options: Options = Options()
 
     private var iceServers: List<PeerConnection.IceServer>? = null
 
@@ -83,27 +76,25 @@ class PeerConnectionClient(
 
     var audioManager: AppRTCAudioManager? = null
 
+    private var localVideoScalingType: ScalingType? = null
     private var remoteVideoScalingType: ScalingType? = null
 
     private var listener: Listener? = null
 
     fun createPeerConnection(
-        setupParams: SetupParams,
+        options: Options,
         listener: Listener? = null
     ): PeerConnection? {
-        Logger.debug(TAG, "createPeerConnection() -> $setupParams, $listener")
+        Logger.debug(TAG, "createPeerConnection() -> options: $options")
 
-        isLocalAudioEnabled = setupParams.isLocalAudioEnabled
-        isLocalVideoEnabled = setupParams.isLocalVideoEnabled
-        isRemoteAudioEnabled = setupParams.isRemoteAudioEnabled
-        isRemoteVideoEnabled = setupParams.isRemoteVideoEnabled
+        this.options = options
 
         eglBase = EglBase.create()
 
-        if (setupParams.iceServers.any { it.url.isNullOrBlank() || it.urls.isNullOrBlank() }) {
+        if (options.iceServers.any { it.url.isNullOrBlank() || it.urls.isNullOrBlank() }) {
             iceServers = emptyList()
         } else {
-            iceServers = setupParams.iceServers.map {
+            iceServers = options.iceServers.map {
                 val builder = if (!it.url.isNullOrBlank()) {
                     PeerConnection.IceServer.builder(it.url)
                 } else if (!it.urls.isNullOrBlank()) {
@@ -135,26 +126,24 @@ class PeerConnectionClient(
 
             PeerConnectionFactory.initialize(initializationOptions)
 
-            val options = PeerConnectionFactory.Options()
-            options.disableNetworkMonitor = true
+            val peerConnectionFactoryOptions = PeerConnectionFactory.Options()
+            peerConnectionFactoryOptions.disableNetworkMonitor = true
 
-            if (isLocalVideoEnabled) {
-                if (setupParams.videoCodecHwAcceleration) {
-                    encoderFactory = DefaultVideoEncoderFactory(
-                        eglBase?.eglBaseContext,  /* enableIntelVp8Encoder */
-                        true,  /* enableH264HighProfile */
-                        true
-                    )
+            if (options.videoCodecHwAcceleration) {
+                encoderFactory = DefaultVideoEncoderFactory(
+                    eglBase?.eglBaseContext,  /* enableIntelVp8Encoder */
+                    true,  /* enableH264HighProfile */
+                    true
+                )
 
-                    decoderFactory = DefaultVideoDecoderFactory(eglBase?.eglBaseContext)
-                } else {
-                    encoderFactory = SoftwareVideoEncoderFactory()
-                    decoderFactory = SoftwareVideoDecoderFactory()
-                }
+                decoderFactory = DefaultVideoDecoderFactory(eglBase?.eglBaseContext)
+            } else {
+                encoderFactory = SoftwareVideoEncoderFactory()
+                decoderFactory = SoftwareVideoDecoderFactory()
             }
 
             peerConnectionFactory = PeerConnectionFactory.builder()
-                .setOptions(options)
+                .setOptions(peerConnectionFactoryOptions)
 //                .setAudioDeviceModule(audioDeviceModule)
                 .setVideoEncoderFactory(encoderFactory)
                 .setVideoDecoderFactory(decoderFactory)
@@ -176,7 +165,7 @@ class PeerConnectionClient(
         mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
 //        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
 
-        if (isLocalVideoEnabled || isRemoteVideoEnabled) {
+        if (options.isLocalVideoEnabled || options.isRemoteVideoEnabled) {
             mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         } else {
             mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
@@ -193,21 +182,21 @@ class PeerConnectionClient(
         this.localSurfaceViewRenderer = localSurfaceView
     }
 
-    fun initLocalCameraStream(isMirrored: Boolean = false) {
+    fun initLocalCameraStream(isMirrored: Boolean = false, isZOrderMediaOverlay: Boolean = true) {
         Logger.debug(TAG, "initLocalCameraStream() -> isMirrored: $isMirrored")
 
-        if (isLocalVideoEnabled) {
-            if (localSurfaceViewRenderer == null) {
-                throw NullPointerException("Local SurfaceViewRenderer is null.")
-            }
+        if (localSurfaceViewRenderer == null) {
+            throw NullPointerException("Local SurfaceViewRenderer is null.")
+        }
 
-            activity.runOnUiThread {
-                localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
-                localSurfaceViewRenderer?.setEnableHardwareScaler(true)
-                localSurfaceViewRenderer?.setMirror(isMirrored)
-                localSurfaceViewRenderer?.setZOrderMediaOverlay(true)
-                localSurfaceViewRenderer?.setScalingType(ScalingType.SCALE_ASPECT_FIT)
-            }
+        activity.runOnUiThread {
+            localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
+            localSurfaceViewRenderer?.setEnableHardwareScaler(true)
+            localSurfaceViewRenderer?.setMirror(isMirrored)
+            localSurfaceViewRenderer?.setZOrderMediaOverlay(isZOrderMediaOverlay)
+
+            localVideoScalingType = ScalingType.SCALE_ASPECT_FILL
+            localSurfaceViewRenderer?.setScalingType(localVideoScalingType)
         }
     }
 
@@ -217,27 +206,33 @@ class PeerConnectionClient(
         this.remoteSurfaceViewRenderer = remoteSurfaceView
     }
 
-    fun initRemoteCameraStream(isMirrored: Boolean = false) {
+    fun initRemoteCameraStream(isMirrored: Boolean = false, isZOrderMediaOverlay: Boolean = false) {
         Logger.debug(TAG, "initRemoteCameraStream() -> isMirrored: $isMirrored")
 
-        if (isRemoteVideoEnabled) {
-            if (remoteSurfaceViewRenderer == null) {
-                throw NullPointerException("Local SurfaceViewRenderer is null.")
-            }
+        if (remoteSurfaceViewRenderer == null) {
+            throw NullPointerException("Local SurfaceViewRenderer is null.")
+        }
 
-            activity.runOnUiThread {
-                remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
-                remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
-                remoteSurfaceViewRenderer?.setMirror(isMirrored)
+        activity.runOnUiThread {
+            remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
+            remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
+            remoteSurfaceViewRenderer?.setMirror(isMirrored)
+            remoteSurfaceViewRenderer?.setZOrderMediaOverlay(isZOrderMediaOverlay)
 
-                remoteVideoScalingType = ScalingType.SCALE_ASPECT_FILL
-                remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
-            }
+            remoteVideoScalingType = ScalingType.SCALE_ASPECT_FILL
+            remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
     }
 
-    fun setScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
-        return activity.runOnUiThread {
+    fun setLocalVideoScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
+        activity.runOnUiThread {
+            localVideoScalingType = ScalingTypeMapper.map(scalingType)
+            localSurfaceViewRenderer?.setScalingType(localVideoScalingType)
+        }
+    }
+
+    fun setRemoteVideoScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
+        activity.runOnUiThread {
             remoteVideoScalingType = ScalingTypeMapper.map(scalingType)
             remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
@@ -248,14 +243,10 @@ class PeerConnectionClient(
 
         localMediaStream = peerConnectionFactory?.createLocalMediaStream("ARDAMS")
 
-        if (isLocalAudioEnabled) {
-            localMediaStream?.addTrack(createAudioTrack())
-        }
+        localMediaStream?.addTrack(createAudioTrack())
 
-        if (isLocalVideoEnabled) {
-            localMediaStream?.addTrack(createVideoTrack())
-            findVideoSender()
-        }
+        localMediaStream?.addTrack(createVideoTrack())
+        findVideoSender()
 
         if (localMediaStream != null) {
             peerConnection?.addStream(localMediaStream)
@@ -279,7 +270,7 @@ class PeerConnectionClient(
 
         if (mediaStream.audioTracks.isNotEmpty()) {
             remoteAudioTrack = mediaStream.audioTracks.first()
-            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
+            remoteAudioTrack?.setEnabled(options.isRemoteAudioEnabled)
         }
 
         if (remoteSurfaceViewRenderer == null) {
@@ -288,7 +279,7 @@ class PeerConnectionClient(
 
         if (mediaStream.videoTracks.isNotEmpty()) {
             remoteVideoTrack = mediaStream.videoTracks.first()
-            remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
+            remoteVideoTrack?.setEnabled(options.isRemoteVideoEnabled)
 
             remoteVideoSink = ProxyVideoSink()
             remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
@@ -324,10 +315,10 @@ class PeerConnectionClient(
 
         localVideoCapturer?.initialize(surfaceTextureHelper, activity, localVideoSource?.capturerObserver)
 
-        localVideoCapturer?.startCapture(localVideoWidth, localVideoHeight, localVideoFPS)
+        localVideoCapturer?.startCapture(options.localVideoWidth, options.localVideoHeight, options.localVideoFPS)
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(Configs.VIDEO_TRACK_ID, localVideoSource)
-        localVideoTrack?.setEnabled(isLocalVideoEnabled)
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(options.localVideoTrackId, localVideoSource)
+        localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
 
         localVideoSink = ProxyVideoSink()
         localVideoSink?.setTarget(localSurfaceViewRenderer)
@@ -341,8 +332,8 @@ class PeerConnectionClient(
 
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(Configs.AUDIO_TRACK_ID, localAudioSource)
-        localAudioTrack?.setEnabled(isLocalAudioEnabled)
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(options.localAudioTrackId, localAudioSource)
+        localAudioTrack?.setEnabled(options.isLocalAudioEnabled)
 
         return localAudioTrack
     }
@@ -404,7 +395,7 @@ class PeerConnectionClient(
             for (encoding in parameters.encodings) {
                 // Null value means no limit.
                 encoding.maxBitrateBps =
-                    if (maxBitrateKbps == null) null else maxBitrateKbps * Configs.BPS_IN_KBPS
+                    if (maxBitrateKbps == null) null else maxBitrateKbps * options.bpsInKbps
             }
             if (!localVideoSender!!.setParameters(parameters)) {
                 Logger.debug(TAG, "RtpSender.setParameters failed.")
@@ -560,29 +551,29 @@ class PeerConnectionClient(
 
     fun setLocalAudioEnabled(isEnabled: Boolean) {
         executor.execute {
-            isLocalAudioEnabled = isEnabled
-            localAudioTrack?.setEnabled(isLocalAudioEnabled)
+            options.isLocalAudioEnabled = isEnabled
+            localAudioTrack?.setEnabled(options.isLocalAudioEnabled)
         }
     }
 
     fun setRemoteAudioEnabled(isEnabled: Boolean) {
         executor.execute {
-            isRemoteAudioEnabled = isEnabled
-            remoteAudioTrack?.setEnabled(isRemoteAudioEnabled)
+            options.isRemoteAudioEnabled = isEnabled
+            remoteAudioTrack?.setEnabled(options.isRemoteAudioEnabled)
         }
     }
 
     fun setLocalVideoEnabled(isEnabled: Boolean) {
         executor.execute {
-            isLocalVideoEnabled = isEnabled
-            localVideoTrack?.setEnabled(isLocalVideoEnabled)
+            options.isLocalVideoEnabled = isEnabled
+            localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
         }
     }
 
     fun setRemoteVideoEnabled(isEnabled: Boolean) {
         executor.execute {
-            isRemoteVideoEnabled = isEnabled
-            remoteVideoTrack?.setEnabled(isRemoteVideoEnabled)
+            options.isRemoteVideoEnabled = isEnabled
+            remoteVideoTrack?.setEnabled(options.isRemoteVideoEnabled)
         }
     }
 
@@ -611,15 +602,15 @@ class PeerConnectionClient(
     }
 
     fun setLocalVideoResolutionWidth(width: Int) {
-        localVideoWidth = width
+        options.localVideoWidth = width
     }
 
     fun setLocalVideoResolutionHeight(height: Int) {
-        localVideoHeight = height
+        options.localVideoHeight = height
     }
 
     fun isHDLocalVideo(): Boolean {
-        return isLocalVideoEnabled && localVideoWidth * localVideoHeight >= 1280 * 720
+        return options.isLocalVideoEnabled && options.localVideoWidth * options.localVideoHeight >= 1280 * 720
     }
 
     fun setLocalTextureSize(textureWidth: Int, textureHeight: Int) {
@@ -655,7 +646,7 @@ class PeerConnectionClient(
     }
 
     fun startLocalVideoCapture() {
-        localVideoCapturer?.startCapture(localVideoWidth, localVideoHeight, localVideoFPS)
+        localVideoCapturer?.startCapture(options.localVideoWidth, options.localVideoHeight, options.localVideoFPS)
     }
 
     fun stopLocalVideoCapture() {
@@ -701,14 +692,7 @@ class PeerConnectionClient(
 
         localSessionDescription = null
 
-        isLocalAudioEnabled = Configs.LOCAL_AUDIO_ENABLED
-        isLocalVideoEnabled = Configs.LOCAL_VIDEO_ENABLED
-        isRemoteAudioEnabled = Configs.REMOTE_AUDIO_ENABLED
-        isRemoteVideoEnabled = Configs.REMOTE_VIDEO_ENABLED
-
-        localVideoWidth = Configs.VIDEO_RESOLUTION_WIDTH
-        localVideoHeight = Configs.VIDEO_RESOLUTION_HEIGHT
-        localVideoFPS = Configs.FPS
+        options = Options()
 
         remoteVideoScalingType = null
 
