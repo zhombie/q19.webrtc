@@ -186,7 +186,8 @@ class PeerConnectionClient(
         Logger.debug(TAG, "initLocalCameraStream() -> isMirrored: $isMirrored")
 
         if (localSurfaceViewRenderer == null) {
-            throw NullPointerException("Local SurfaceViewRenderer is null.")
+            Logger.error(TAG, "Local SurfaceViewRenderer is null.")
+            return
         }
 
         activity.runOnUiThread {
@@ -210,7 +211,8 @@ class PeerConnectionClient(
         Logger.debug(TAG, "initRemoteCameraStream() -> isMirrored: $isMirrored")
 
         if (remoteSurfaceViewRenderer == null) {
-            throw NullPointerException("Local SurfaceViewRenderer is null.")
+            Logger.error(TAG, "Remote SurfaceViewRenderer is null.")
+            return
         }
 
         activity.runOnUiThread {
@@ -243,10 +245,16 @@ class PeerConnectionClient(
 
         localMediaStream = peerConnectionFactory?.createLocalMediaStream("ARDAMS")
 
-        localMediaStream?.addTrack(createAudioTrack())
+        val audioTrack = createAudioTrack()
+        if (audioTrack != null) {
+            localMediaStream?.addTrack(audioTrack)
+        }
 
-        localMediaStream?.addTrack(createVideoTrack())
-        findVideoSender()
+        val videoTrack = createVideoTrack()
+        if (videoTrack != null) {
+            localMediaStream?.addTrack(videoTrack)
+            findVideoSender()
+        }
 
         if (localMediaStream != null) {
             peerConnection?.addStream(localMediaStream)
@@ -304,7 +312,8 @@ class PeerConnectionClient(
         Logger.debug(TAG, "createVideoTrack()")
 
         if (localSurfaceViewRenderer == null) {
-            throw NullPointerException("Local SurfaceViewRenderer is null.")
+            Logger.error(TAG, "Local SurfaceViewRenderer is null.")
+            return null
         }
 
         surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBase?.eglBaseContext)
