@@ -7,6 +7,7 @@ import android.media.AudioManager
 import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.core.ProxyVideoSink
 import kz.q19.webrtc.core.SurfaceViewRenderer
+import kz.q19.webrtc.core.Target
 import kz.q19.webrtc.mapper.*
 import kz.q19.webrtc.mapper.AdapterTypeMapper
 import kz.q19.webrtc.mapper.IceCandidateMapper
@@ -66,11 +67,12 @@ class PeerConnectionClient(
     private var localVideoSink: ProxyVideoSink? = null
     private var remoteVideoSink: ProxyVideoSink? = null
 
+    private var localVideoSinkTarget: Target? = null
+    private var remoteVideoSinkTarget: Target? = null
+
     private var localSessionDescription: SessionDescription? = null
 
     private var localVideoSender: RtpSender? = null
-
-    private var isSwappedFeeds: Boolean = false
 
     private var isInitiator = false
 
@@ -288,7 +290,7 @@ class PeerConnectionClient(
             if (remoteSurfaceViewRenderer == null) {
                 Logger.error(TAG, "Remote SurfaceViewRenderer is null.")
             } else {
-                remoteVideoSink = ProxyVideoSink()
+                remoteVideoSink = ProxyVideoSink("RemoteVideoSink")
                 remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
                 remoteVideoTrack?.addSink(remoteVideoSink)
             }
@@ -329,7 +331,7 @@ class PeerConnectionClient(
         localVideoTrack = peerConnectionFactory?.createVideoTrack(options.localVideoTrackId, localVideoSource)
         localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
 
-        localVideoSink = ProxyVideoSink()
+        localVideoSink = ProxyVideoSink("LocalVideoSink")
         localVideoSink?.setTarget(localSurfaceViewRenderer)
         localVideoTrack?.addSink(localVideoSink)
 
@@ -637,14 +639,40 @@ class PeerConnectionClient(
         localVideoSource?.adaptOutputFormat(width, height, fps)
     }
 
-    fun setSwappedFeeds(isSwappedFeeds: Boolean) {
-        Logger.debug(TAG, "setSwappedFeeds() -> isSwappedFeeds: $isSwappedFeeds")
+    fun setVideoSinks(local: Target, remote: Target) {
+        Logger.debug(TAG, "setVideoSinks() -> local: $local, remote: $remote")
 
-        this.isSwappedFeeds = isSwappedFeeds
-
-        localVideoSink?.setTarget(if (isSwappedFeeds) remoteSurfaceViewRenderer else localSurfaceViewRenderer)
-        remoteVideoSink?.setTarget(if (isSwappedFeeds) localSurfaceViewRenderer else remoteSurfaceViewRenderer)
+        localVideoSinkTarget = setLocalVideoSink(local)
+        remoteVideoSinkTarget = setRemoteVideoSink(remote)
     }
+
+    fun setLocalVideoSink(target: Target): Target? {
+        val set = when (target) {
+            Target.LOCAL -> {
+                localVideoSink?.setTarget(localSurfaceViewRenderer)
+            }
+            Target.REMOTE -> {
+                localVideoSink?.setTarget(remoteSurfaceViewRenderer)
+            }
+        }
+        return if (set == true) target else null
+    }
+
+    fun setRemoteVideoSink(target: Target): Target? {
+        val set = when (target) {
+            Target.LOCAL -> {
+                remoteVideoSink?.setTarget(localSurfaceViewRenderer)
+            }
+            Target.REMOTE -> {
+                remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
+            }
+        }
+        return if (set == true) target else null
+    }
+
+    fun getLocalVideoSinkTarget(): Target? = localVideoSinkTarget
+
+    fun getRemoteVideoSinkTarget(): Target? = remoteVideoSinkTarget
 
     fun pauseLocalVideoStream() {
         localSurfaceViewRenderer?.pauseVideo()
