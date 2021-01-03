@@ -2,8 +2,10 @@ package kz.q19.webrtc.core
 
 import android.content.Context
 import android.util.AttributeSet
+import androidx.annotation.Keep
 
-class SurfaceViewRenderer @JvmOverloads constructor(
+@Keep
+open class SurfaceViewRenderer @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : org.webrtc.SurfaceViewRenderer(context, attrs)

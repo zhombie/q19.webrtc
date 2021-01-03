@@ -1,9 +1,11 @@
 package kz.q19.webrtc.core
 
+import androidx.annotation.Keep
 import kz.q19.webrtc.utils.Logger
 import org.webrtc.VideoFrame
 import org.webrtc.VideoSink
 
+@Keep
 class ProxyVideoSink constructor(private val tag: String = "ProxyVideoSink") : VideoSink {
     private var target: VideoSink? = null
 
