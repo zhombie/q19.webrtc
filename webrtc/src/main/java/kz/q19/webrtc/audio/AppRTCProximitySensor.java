@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-package kz.q19.webrtc;
+package kz.q19.webrtc.audio;
 
 import android.content.Context;
 import android.hardware.Sensor;

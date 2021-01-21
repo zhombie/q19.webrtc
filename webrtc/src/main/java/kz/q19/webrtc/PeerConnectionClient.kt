@@ -5,6 +5,7 @@ package kz.q19.webrtc
 import android.app.Activity
 import android.media.AudioManager
 import kz.q19.domain.model.webrtc.IceConnectionState
+import kz.q19.webrtc.audio.AppRTCAudioManager
 import kz.q19.webrtc.core.ProxyVideoSink
 import kz.q19.webrtc.core.SurfaceViewRenderer
 import kz.q19.webrtc.core.Target
@@ -20,8 +21,9 @@ import org.webrtc.RendererCommon.ScalingType
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.jvm.Throws
 
-class PeerConnectionClient(
+class PeerConnectionClient constructor(
     private val activity: Activity,
     private var localSurfaceViewRenderer: SurfaceViewRenderer? = null,
     private var remoteSurfaceViewRenderer: SurfaceViewRenderer? = null
@@ -83,6 +85,7 @@ class PeerConnectionClient(
 
     private var listener: Listener? = null
 
+    @Throws(IllegalStateException::class)
     fun createPeerConnection(
         options: Options,
         listener: Listener? = null
@@ -93,16 +96,17 @@ class PeerConnectionClient(
 
         eglBase = EglBase.create()
 
-        if (options.iceServers.any { it.url.isNullOrBlank() || it.urls.isNullOrBlank() }) {
+        if (options.iceServers.any { it.url.isBlank() || it.urls.isBlank() }) {
             iceServers = emptyList()
         } else {
             iceServers = options.iceServers.map {
-                val builder = if (!it.url.isNullOrBlank()) {
-                    PeerConnection.IceServer.builder(it.url)
-                } else if (!it.urls.isNullOrBlank()) {
-                    PeerConnection.IceServer.builder(it.urls)
-                } else {
-                    throw IllegalStateException("url || urls is null or blank. Please provide anything.")
+                val builder = when {
+                    it.url.isNotBlank() ->
+                        PeerConnection.IceServer.builder(it.url)
+                    it.urls.isNotBlank() ->
+                        PeerConnection.IceServer.builder(it.urls)
+                    else ->
+                        throw IllegalStateException("url || urls is null or blank. Please provide anything.")
                 }
                 builder.setUsername(it.username ?: "")
                 builder.setPassword(it.credential ?: "")
@@ -509,7 +513,7 @@ class PeerConnectionClient(
                 Logger.debug(TAG, "onIceCandidate() -> iceCandidate: $iceCandidate")
 
                 executor.execute {
-                    listener?.onIceCandidate(
+                    listener?.onLocalIceCandidate(
                         IceCandidateMapper.map(iceCandidate, AdapterTypeMapper.map(iceCandidate.adapterType))
                     )
                 }
@@ -841,7 +845,7 @@ class PeerConnectionClient(
                         // We've just set our local SDP so time to send it.
                         Logger.debug(TAG, "Local SDP set successfully")
                         localSessionDescription?.let {
-                            listener?.onLocalDescription(SessionDescriptionMapper.map(it))
+                            listener?.onLocalSessionDescription(SessionDescriptionMapper.map(it))
                         }
                     } else {
                         // We've just set remote description, so drain remote
@@ -856,7 +860,7 @@ class PeerConnectionClient(
                         // remote and send local ICE candidates.
                         Logger.debug(TAG, "Local SDP set successfully")
                         localSessionDescription?.let {
-                            listener?.onLocalDescription(SessionDescriptionMapper.map(it))
+                            listener?.onLocalSessionDescription(SessionDescriptionMapper.map(it))
                         }
                     } else {
                         // We've just set remote SDP - do nothing for now -
@@ -881,10 +885,10 @@ class PeerConnectionClient(
     }
 
     interface Listener {
-        fun onIceCandidate(iceCandidate: kz.q19.domain.model.webrtc.IceCandidate)
+        fun onLocalSessionDescription(sessionDescription: kz.q19.domain.model.webrtc.SessionDescription)
+        fun onLocalIceCandidate(iceCandidate: kz.q19.domain.model.webrtc.IceCandidate)
         fun onIceConnectionChange(iceConnectionState: IceConnectionState)
         fun onRenegotiationNeeded()
-        fun onLocalDescription(sessionDescription: kz.q19.domain.model.webrtc.SessionDescription)
 
         fun onAddRemoteStream(mediaStream: MediaStream)
         fun onRemoveStream(mediaStream: MediaStream)
