@@ -479,7 +479,7 @@ class PeerConnectionClient constructor(
         rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
         rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
         rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
-        rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.RELAY
+        rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.ALL
 
         val peerConnectionObserver = object : PeerConnection.Observer {
             override fun onAddTrack(
