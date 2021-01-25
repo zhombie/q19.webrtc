@@ -694,6 +694,14 @@ class PeerConnectionClient constructor(
         localVideoCapturer?.stopCapture()
     }
 
+    fun setLocalVideoStreamMirror(isMirrored: Boolean) {
+        localSurfaceViewRenderer?.setMirror(isMirrored)
+    }
+
+    fun setRemoteVideoStreamMirror(isMirrored: Boolean) {
+        remoteSurfaceViewRenderer?.setMirror(isMirrored)
+    }
+
     fun getAudioOutputDevices(): Set<AppRTCAudioManager.AudioDevice>? = audioManager?.audioDevices
 
     fun getSelectedAudioOutputDevice(): AppRTCAudioManager.AudioDevice? = audioManager?.selectedAudioDevice
