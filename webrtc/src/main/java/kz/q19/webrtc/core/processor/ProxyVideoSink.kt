@@ -1,4 +1,4 @@
-package kz.q19.webrtc.core
+package kz.q19.webrtc.core.processor
 
 import androidx.annotation.Keep
 import kz.q19.webrtc.utils.Logger

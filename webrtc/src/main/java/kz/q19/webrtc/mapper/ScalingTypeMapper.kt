@@ -1,6 +1,6 @@
 package kz.q19.webrtc.mapper
 
-import kz.q19.webrtc.core.ScalingType
+import kz.q19.webrtc.core.model.ScalingType
 import org.webrtc.RendererCommon
 
 internal class ScalingTypeMapper {

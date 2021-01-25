@@ -1,4 +1,4 @@
-package kz.q19.webrtc.core
+package kz.q19.webrtc.core.ui
 
 import android.content.Context
 import android.util.AttributeSet

@@ -2,31 +2,32 @@
 
 package kz.q19.webrtc
 
-import android.app.Activity
-import android.media.AudioManager
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import kz.q19.domain.model.webrtc.IceConnectionState
-import kz.q19.webrtc.audio.AppRTCAudioManager
-import kz.q19.webrtc.core.ProxyVideoSink
-import kz.q19.webrtc.core.SurfaceViewRenderer
-import kz.q19.webrtc.core.Target
+import kz.q19.webrtc.audio.RTCAudioManager
+import kz.q19.webrtc.core.processor.ProxyVideoSink
+import kz.q19.webrtc.core.ui.SurfaceViewRenderer
+import kz.q19.webrtc.core.model.Target
+import kz.q19.webrtc.core.constraints.*
 import kz.q19.webrtc.mapper.*
-import kz.q19.webrtc.mapper.AdapterTypeMapper
-import kz.q19.webrtc.mapper.IceCandidateMapper
-import kz.q19.webrtc.mapper.IceConnectionStateMapper
-import kz.q19.webrtc.mapper.ScalingTypeMapper
-import kz.q19.webrtc.mapper.SessionDescriptionMapper
 import kz.q19.webrtc.utils.*
 import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
+import org.webrtc.audio.AudioDeviceModule
+import org.webrtc.audio.JavaAudioDeviceModule
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.jvm.Throws
 
 class PeerConnectionClient constructor(
-    private val activity: Activity,
-    private var localSurfaceViewRenderer: SurfaceViewRenderer? = null,
-    private var remoteSurfaceViewRenderer: SurfaceViewRenderer? = null
+    private val context: Context,
+
+    var options: Options = Options(),
+
+    var localSurfaceViewRenderer: SurfaceViewRenderer? = null,
+    var remoteSurfaceViewRenderer: SurfaceViewRenderer? = null
 ) {
 
     companion object {
@@ -34,12 +35,9 @@ class PeerConnectionClient constructor(
     }
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-
-    private var options: Options = Options()
+    private val uiHandler: Handler = Handler(Looper.getMainLooper())
 
     private var iceServers: List<PeerConnection.IceServer>? = null
-
-    private var sdpMediaConstraints: MediaConstraints? = null
 
     private var peerConnectionFactory: PeerConnectionFactory? = null
     private var peerConnection: PeerConnection? = null
@@ -78,12 +76,35 @@ class PeerConnectionClient constructor(
 
     private var isInitiator = false
 
-    var audioManager: AppRTCAudioManager? = null
-
     private var localVideoScalingType: ScalingType? = null
     private var remoteVideoScalingType: ScalingType? = null
 
     private var listener: Listener? = null
+
+    var audioManager: RTCAudioManager? = null
+
+    private val audioBooleanConstraints by lazy {
+        RTCConstraints<AudioBooleanConstraints, Boolean>().apply {
+            addMandatoryConstraint(AudioBooleanConstraints.DISABLE_AUDIO_PROCESSING, true)
+        }
+    }
+
+    private val audioIntegerConstraints by lazy {
+        RTCConstraints<AudioIntegerConstraints, Int>()
+    }
+
+    private val offerAnswerConstraints by lazy {
+        RTCConstraints<OfferAnswerConstraints, Boolean>().apply {
+            addMandatoryConstraint(OfferAnswerConstraints.OFFER_TO_RECEIVE_AUDIO, true)
+        }
+    }
+
+    private val peerConnectionConstraints by lazy {
+        RTCConstraints<PeerConnectionConstraints, Boolean>().apply {
+            addMandatoryConstraint(PeerConnectionConstraints.DTLS_SRTP_KEY_AGREEMENT_CONSTRAINT, true)
+            addMandatoryConstraint(PeerConnectionConstraints.GOOG_CPU_OVERUSE_DETECTION, true)
+        }
+    }
 
     @Throws(IllegalStateException::class)
     fun createPeerConnection(
@@ -119,14 +140,29 @@ class PeerConnectionClient constructor(
         this.listener = listener
 
         isInitiator = false
-        sdpMediaConstraints = null
         localSessionDescription = null
 
-        sdpMediaConstraints = buildMediaConstraints()
+        options.audioBooleanConstraints?.let {
+            audioBooleanConstraints += it
+        }
+        options.audioIntegerConstraints?.let {
+            audioIntegerConstraints += it
+        }
+        options.peerConnectionConstraints?.let {
+            peerConnectionConstraints += it
+        }
+        options.offerAnswerConstraints?.let {
+            if (options.isLocalVideoEnabled || options.isRemoteVideoEnabled) {
+                offerAnswerConstraints += RTCConstraints<OfferAnswerConstraints, Boolean>().apply {
+                    addMandatoryConstraint(OfferAnswerConstraints.OFFER_TO_RECEIVE_VIDEO, true)
+                }
+            }
+            offerAnswerConstraints += it
+        }
 
         val future = executor.submit(Callable {
             val initializationOptions = PeerConnectionFactory.InitializationOptions
-                .builder(activity)
+                .builder(context)
                 .setEnableInternalTracer(true)
                 .createInitializationOptions()
 
@@ -148,9 +184,11 @@ class PeerConnectionClient constructor(
                 decoderFactory = SoftwareVideoDecoderFactory()
             }
 
+            val audioDeviceModule: AudioDeviceModule = createJavaAudioDevice()
+
             peerConnectionFactory = PeerConnectionFactory.builder()
                 .setOptions(peerConnectionFactoryOptions)
-//                .setAudioDeviceModule(audioDeviceModule)
+                .setAudioDeviceModule(audioDeviceModule)
                 .setVideoEncoderFactory(encoderFactory)
                 .setVideoDecoderFactory(decoderFactory)
                 .createPeerConnectionFactory()
@@ -163,23 +201,27 @@ class PeerConnectionClient constructor(
         return future.get()
     }
 
-    private fun buildMediaConstraints(): MediaConstraints {
-        Logger.debug(TAG, "buildMediaConstraints()")
+    private fun createJavaAudioDevice(): JavaAudioDeviceModule {
+        return JavaAudioDeviceModule.builder(context)
+            .setUseHardwareAcousticEchoCanceler(true)
+            .setUseHardwareNoiseSuppressor(true)
+            .setAudioTrackErrorCallback(object : JavaAudioDeviceModule.AudioTrackErrorCallback {
+                override fun onWebRtcAudioTrackInitError(p0: String?) {
+                    Logger.error(TAG, "$p0")
+                }
 
-        val mediaConstraints = MediaConstraints()
+                override fun onWebRtcAudioTrackError(p0: String?) {
+                    Logger.error(TAG, "$p0")
+                }
 
-        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
-//        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"))
-
-        if (options.isLocalVideoEnabled || options.isRemoteVideoEnabled) {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
-        } else {
-            mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"))
-        }
-
-        mediaConstraints.mandatory.add(MediaConstraints.KeyValuePair("levelControl", "true"))
-
-        return mediaConstraints
+                override fun onWebRtcAudioTrackStartError(
+                    p0: JavaAudioDeviceModule.AudioTrackStartErrorCode?,
+                    p1: String?
+                ) {
+                    Logger.error(TAG, "$p0, $p1")
+                }
+            })
+            .createAudioDeviceModule()
     }
 
     fun setLocalSurfaceView(localSurfaceView: SurfaceViewRenderer?) {
@@ -196,7 +238,7 @@ class PeerConnectionClient constructor(
             return
         }
 
-        activity.runOnUiThread {
+        uiHandler.post {
             localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             localSurfaceViewRenderer?.setEnableHardwareScaler(true)
             localSurfaceViewRenderer?.setMirror(isMirrored)
@@ -221,7 +263,7 @@ class PeerConnectionClient constructor(
             return
         }
 
-        activity.runOnUiThread {
+        uiHandler.post {
             remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
             remoteSurfaceViewRenderer?.setMirror(isMirrored)
@@ -232,21 +274,21 @@ class PeerConnectionClient constructor(
         }
     }
 
-    fun setLocalVideoScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
-        activity.runOnUiThread {
+    fun setLocalVideoScalingType(scalingType: kz.q19.webrtc.core.model.ScalingType) {
+        uiHandler.post {
             localVideoScalingType = ScalingTypeMapper.map(scalingType)
             localSurfaceViewRenderer?.setScalingType(localVideoScalingType)
         }
     }
 
-    fun setRemoteVideoScalingType(scalingType: kz.q19.webrtc.core.ScalingType) {
-        activity.runOnUiThread {
+    fun setRemoteVideoScalingType(scalingType: kz.q19.webrtc.core.model.ScalingType) {
+        uiHandler.post {
             remoteVideoScalingType = ScalingTypeMapper.map(scalingType)
             remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
     }
 
-    fun addLocalStreamToPeer() {
+    fun addLocalStreamToPeer(): Boolean {
         Logger.debug(TAG, "addLocalStreamToPeer()")
 
         localMediaStream = peerConnectionFactory?.createLocalMediaStream("ARDAMS")
@@ -262,11 +304,14 @@ class PeerConnectionClient constructor(
             findVideoSender()
         }
 
+        var isStreamAdded = false
         if (localMediaStream != null) {
-            peerConnection?.addStream(localMediaStream)
+            isStreamAdded = peerConnection?.addStream(localMediaStream) == true
         }
 
         startAudioManager()
+
+        return isStreamAdded
     }
 
     fun addRemoteStreamToPeer(mediaStream: MediaStream) {
@@ -304,14 +349,12 @@ class PeerConnectionClient constructor(
     private fun startAudioManager() {
         Logger.debug(TAG, "startAudioManager()")
 
-        activity.runOnUiThread {
-            audioManager = AppRTCAudioManager.create(activity)
+        uiHandler.post {
+            audioManager = RTCAudioManager.create(context)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
                 Logger.debug(TAG, "audioManager: $availableAudioDevices, $selectedAudioDevice")
             }
         }
-
-        activity.volumeControlStream = AudioManager.STREAM_VOICE_CALL
     }
 
     private fun createVideoTrack(): VideoTrack? {
@@ -328,11 +371,18 @@ class PeerConnectionClient constructor(
 
         localVideoCapturer = createVideoCapturer()
 
-        localVideoCapturer?.initialize(surfaceTextureHelper, activity, localVideoSource?.capturerObserver)
+        localVideoCapturer?.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
 
-        localVideoCapturer?.startCapture(options.localVideoWidth, options.localVideoHeight, options.localVideoFPS)
+        localVideoCapturer?.startCapture(
+            options.localVideoWidth,
+            options.localVideoHeight,
+            options.localVideoFPS
+        )
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(options.localVideoTrackId, localVideoSource)
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(
+            options.localVideoTrackId,
+            localVideoSource
+        )
         localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
 
         localVideoSink = ProxyVideoSink("LocalVideoSink")
@@ -347,7 +397,10 @@ class PeerConnectionClient constructor(
 
         localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(options.localAudioTrackId, localAudioSource)
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(
+            options.localAudioTrackId,
+            localAudioSource
+        )
         localAudioTrack?.setEnabled(options.isLocalAudioEnabled)
 
         return localAudioTrack
@@ -357,7 +410,7 @@ class PeerConnectionClient constructor(
         Logger.debug(TAG, "createVideoCapturer()")
 
         return if (useCamera2()) {
-            createCameraCapturer(Camera2Enumerator(activity))
+            createCameraCapturer(Camera2Enumerator(context))
         } else {
             createCameraCapturer(Camera1Enumerator(true))
         }
@@ -375,7 +428,7 @@ class PeerConnectionClient constructor(
         return null
     }
 
-    private fun useCamera2(): Boolean = Camera2Enumerator.isSupported(activity)
+    private fun useCamera2(): Boolean = Camera2Enumerator.isSupported(context)
 
     private fun findVideoSender() {
         Logger.debug(TAG, "findVideoSender()")
@@ -412,7 +465,7 @@ class PeerConnectionClient constructor(
                 encoding.maxBitrateBps =
                     if (maxBitrateKbps == null) null else maxBitrateKbps * options.bpsInKbps
             }
-            if (!localVideoSender!!.setParameters(parameters)) {
+            if (localVideoSender?.setParameters(parameters) == false) {
                 Logger.debug(TAG, "RtpSender.setParameters failed.")
             }
             Logger.debug(TAG, "Configured max video bitrate to: $maxBitrateKbps")
@@ -447,7 +500,10 @@ class PeerConnectionClient constructor(
 
             peerConnection?.setRemoteDescription(
                 sdpObserver,
-                SessionDescription(SessionDescriptionMapper.map(sessionDescription.type), sdpDescription)
+                SessionDescription(
+                    SessionDescriptionMapper.map(sessionDescription.type),
+                    sdpDescription
+                )
             )
         }
     }
@@ -457,7 +513,7 @@ class PeerConnectionClient constructor(
 
         executor.execute {
             isInitiator = true
-            peerConnection?.createOffer(sdpObserver, sdpMediaConstraints)
+            peerConnection?.createOffer(sdpObserver, getOfferAnswerConstraints())
         }
     }
 
@@ -466,7 +522,7 @@ class PeerConnectionClient constructor(
 
         executor.execute {
             isInitiator = false
-            peerConnection?.createAnswer(sdpObserver, sdpMediaConstraints)
+            peerConnection?.createAnswer(sdpObserver, getOfferAnswerConstraints())
         }
     }
 
@@ -514,7 +570,10 @@ class PeerConnectionClient constructor(
 
                 executor.execute {
                     listener?.onLocalIceCandidate(
-                        IceCandidateMapper.map(iceCandidate, AdapterTypeMapper.map(iceCandidate.adapterType))
+                        IceCandidateMapper.map(
+                            iceCandidate,
+                            AdapterTypeMapper.map(iceCandidate.adapterType)
+                        )
                     )
                 }
             }
@@ -564,47 +623,53 @@ class PeerConnectionClient constructor(
         }
     }
 
-    fun setLocalAudioEnabled(isEnabled: Boolean) {
-        executor.execute {
+    fun setLocalAudioEnabled(isEnabled: Boolean): Boolean {
+        return executor.submit(Callable {
             options.isLocalAudioEnabled = isEnabled
             localAudioTrack?.setEnabled(options.isLocalAudioEnabled)
-        }
+        }).get() == true
     }
 
-    fun setRemoteAudioEnabled(isEnabled: Boolean) {
-        executor.execute {
+    fun setRemoteAudioEnabled(isEnabled: Boolean): Boolean {
+        return executor.submit(Callable {
             options.isRemoteAudioEnabled = isEnabled
             remoteAudioTrack?.setEnabled(options.isRemoteAudioEnabled)
-        }
+        }).get() == true
     }
 
-    fun setLocalVideoEnabled(isEnabled: Boolean) {
-        executor.execute {
+    fun setLocalVideoEnabled(isEnabled: Boolean): Boolean {
+        return executor.submit(Callable {
             options.isLocalVideoEnabled = isEnabled
             localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
-        }
+        }).get() == true
     }
 
-    fun setRemoteVideoEnabled(isEnabled: Boolean) {
-        executor.execute {
+    fun setRemoteVideoEnabled(isEnabled: Boolean): Boolean {
+        return executor.submit(Callable {
             options.isRemoteVideoEnabled = isEnabled
             remoteVideoTrack?.setEnabled(options.isRemoteVideoEnabled)
-        }
+        }).get() == true
     }
 
-    fun addStream(mediaStream: MediaStream) {
-        peerConnection?.addStream(mediaStream)
+    fun addStream(mediaStream: MediaStream): Boolean {
+        return peerConnection?.addStream(mediaStream) == true
     }
 
     fun removeStream(mediaStream: MediaStream) {
         peerConnection?.removeStream(mediaStream)
     }
 
-    fun removeMediaStreamTrack(mediaStreamTrack: MediaStreamTrack) {
-        if (mediaStreamTrack.kind() == MediaStreamTrack.AUDIO_TRACK_KIND) {
-            remoteMediaStream?.removeTrack(remoteAudioTrack)
-        } else if (mediaStreamTrack.kind() == MediaStreamTrack.VIDEO_TRACK_KIND) {
-            remoteMediaStream?.removeTrack(remoteVideoTrack)
+    fun removeMediaStreamTrack(mediaStreamTrack: MediaStreamTrack): Boolean {
+        return when {
+            mediaStreamTrack.kind() == MediaStreamTrack.AUDIO_TRACK_KIND -> {
+                remoteMediaStream?.removeTrack(remoteAudioTrack) == true
+            }
+            mediaStreamTrack.kind() == MediaStreamTrack.VIDEO_TRACK_KIND -> {
+                remoteMediaStream?.removeTrack(remoteVideoTrack) == true
+            }
+            else -> {
+                false
+            }
         }
     }
 
@@ -616,12 +681,14 @@ class PeerConnectionClient constructor(
         remoteAudioTrack?.setVolume(volume)
     }
 
-    fun setLocalVideoResolutionWidth(width: Int) {
+    fun setLocalVideoResolutionWidth(width: Int): Boolean {
         options.localVideoWidth = width
+        return options.localVideoWidth == width
     }
 
-    fun setLocalVideoResolutionHeight(height: Int) {
+    fun setLocalVideoResolutionHeight(height: Int): Boolean {
         options.localVideoHeight = height
+        return options.localVideoHeight == height
     }
 
     fun isHDLocalVideo(): Boolean {
@@ -687,7 +754,11 @@ class PeerConnectionClient constructor(
     }
 
     fun startLocalVideoCapture() {
-        localVideoCapturer?.startCapture(options.localVideoWidth, options.localVideoHeight, options.localVideoFPS)
+        localVideoCapturer?.startCapture(
+            options.localVideoWidth,
+            options.localVideoHeight,
+            options.localVideoFPS
+        )
     }
 
     fun stopLocalVideoCapture() {
@@ -702,19 +773,21 @@ class PeerConnectionClient constructor(
         remoteSurfaceViewRenderer?.setMirror(isMirrored)
     }
 
-    fun getAudioOutputDevices(): Set<AppRTCAudioManager.AudioDevice>? = audioManager?.audioDevices
+    fun getAudioOutputDevices(): Set<RTCAudioManager.AudioDevice>? =
+        audioManager?.getAudioDevices()
 
-    fun getSelectedAudioOutputDevice(): AppRTCAudioManager.AudioDevice? = audioManager?.selectedAudioDevice
+    fun getSelectedAudioOutputDevice(): RTCAudioManager.AudioDevice? =
+        audioManager?.getSelectedAudioDevice()
 
     fun selectAudioOutputSpeakerPhone() {
-        selectAudioDeviceInternally(AppRTCAudioManager.AudioDevice.SPEAKER_PHONE)
+        selectAudioDeviceInternally(RTCAudioManager.AudioDevice.SPEAKER_PHONE)
     }
 
     fun selectAudioOutputEarpiece() {
-        selectAudioDeviceInternally(AppRTCAudioManager.AudioDevice.EARPIECE)
+        selectAudioDeviceInternally(RTCAudioManager.AudioDevice.EARPIECE)
     }
 
-    private fun selectAudioDeviceInternally(audioDevice: AppRTCAudioManager.AudioDevice) {
+    private fun selectAudioDeviceInternally(audioDevice: RTCAudioManager.AudioDevice) {
         audioManager?.selectAudioDevice(audioDevice)
     }
 
@@ -723,7 +796,7 @@ class PeerConnectionClient constructor(
     }
 
     fun dispose() {
-        activity.runOnUiThread {
+        uiHandler.post {
             audioManager?.stop()
             audioManager = null
 
@@ -737,7 +810,10 @@ class PeerConnectionClient constructor(
 
         isInitiator = false
 
-        sdpMediaConstraints = null
+        audioBooleanConstraints.clearAll()
+        audioIntegerConstraints.clearAll()
+        peerConnectionConstraints.clearAll()
+        offerAnswerConstraints.clearAll()
 
         localSessionDescription = null
 
@@ -748,8 +824,6 @@ class PeerConnectionClient constructor(
         localVideoSender = null
 
         executor.execute {
-            activity.volumeControlStream = AudioManager.USE_DEFAULT_STREAM_TYPE
-
             peerConnection?.dispose()
 
             surfaceTextureHelper?.dispose()
@@ -890,6 +964,30 @@ class PeerConnectionClient constructor(
 
             reportError("Set SDP error: $error")
         }
+    }
+
+    private fun getAudioMediaConstraints(): MediaConstraints = MediaConstraints().apply {
+        addConstraints(audioBooleanConstraints, audioIntegerConstraints)
+    }
+
+    private fun getPeerConnectionMediaConstraints(): MediaConstraints = MediaConstraints().apply {
+        addConstraints(peerConnectionConstraints)
+    }
+
+    private fun getOfferAnswerConstraints(): MediaConstraints = MediaConstraints().apply {
+        addConstraints(offerAnswerConstraints)
+    }
+
+    private fun getOfferAnswerRestartConstraints(): MediaConstraints = getOfferAnswerConstraints().apply {
+        mandatory.add(OfferAnswerConstraints.ICE_RESTART.toKeyValuePair(true))
+    }
+
+    private fun MediaConstraints.addConstraints(constraints: RTCConstraints<*, *>): Boolean {
+        return mandatory.addAll(constraints.mandatoryKeyValuePairs) && optional.addAll(constraints.optionalKeyValuePairs)
+    }
+
+    private fun MediaConstraints.addConstraints(vararg constraints: RTCConstraints<*, *>) {
+        constraints.forEach { addConstraints(it) }
     }
 
     interface Listener {

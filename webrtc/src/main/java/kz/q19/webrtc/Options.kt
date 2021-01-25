@@ -1,6 +1,7 @@
 package kz.q19.webrtc
 
 import kz.q19.domain.model.webrtc.IceServer
+import kz.q19.webrtc.core.constraints.*
 
 data class Options constructor(
     var isLocalAudioEnabled: Boolean = LOCAL_AUDIO_ENABLED,
@@ -19,7 +20,12 @@ data class Options constructor(
     var localAudioTrackId: String = AUDIO_TRACK_ID,
     var localVideoTrackId: String = VIDEO_TRACK_ID,
 
-    var bpsInKbps: Int = BPS_IN_KBPS
+    var bpsInKbps: Int = BPS_IN_KBPS,
+
+    var audioBooleanConstraints: RTCConstraints<AudioBooleanConstraints, Boolean>? = null,
+    var audioIntegerConstraints: RTCConstraints<AudioIntegerConstraints, Int>? = null,
+    var peerConnectionConstraints: RTCConstraints<PeerConnectionConstraints, Boolean>? = null,
+    var offerAnswerConstraints: RTCConstraints<OfferAnswerConstraints, Boolean>? = null
 ) {
 
     companion object {
