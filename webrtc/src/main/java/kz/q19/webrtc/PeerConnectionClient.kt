@@ -369,6 +369,11 @@ class PeerConnectionClient constructor(
 
         localVideoSource = peerConnectionFactory?.createVideoSource(false)
 
+        if (localVideoSource == null) {
+            Logger.error(TAG, "Local VideoSource is null.")
+            return null
+        }
+
         localVideoCapturer = createVideoCapturer()
 
         localVideoCapturer?.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
