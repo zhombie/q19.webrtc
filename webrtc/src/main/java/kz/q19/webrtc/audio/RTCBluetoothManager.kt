@@ -1,3 +1,5 @@
+@file:Suppress("SameParameterValue", "ProtectedInFinal", "unused")
+
 package kz.q19.webrtc.audio
 
 import android.Manifest
@@ -318,8 +320,8 @@ internal class RTCBluetoothManager protected constructor(
      * virtual voice call to the Bluetooth headset. After API version JELLY_BEAN_MR2 only a raw SCO
      * audio connection is established.
      * TODO(henrika): should we add support for virtual voice call to BT headset also for JBMR2 and
-     * higher. It might be required to initiates a virtual voice call since many devices do not
-     * accept SCO audio without a "call".
+     *  higher. It might be required to initiates a virtual voice call since many devices do not
+     *  accept SCO audio without a "call".
      */
     fun startScoAudio(): Boolean {
         ThreadUtils.checkIsOnMainThread()
@@ -401,8 +403,8 @@ internal class RTCBluetoothManager protected constructor(
         return context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager?
     }
 
-    protected fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?) {
-        context.registerReceiver(receiver, filter)
+    protected fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?): Intent? {
+        return context.registerReceiver(receiver, filter)
     }
 
     protected fun unregisterReceiver(receiver: BroadcastReceiver?) {
