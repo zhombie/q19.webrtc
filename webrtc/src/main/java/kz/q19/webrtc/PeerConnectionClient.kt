@@ -7,10 +7,10 @@ import android.os.Handler
 import android.os.Looper
 import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.audio.RTCAudioManager
+import kz.q19.webrtc.core.constraints.*
+import kz.q19.webrtc.core.model.Target
 import kz.q19.webrtc.core.processor.ProxyVideoSink
 import kz.q19.webrtc.core.ui.SurfaceViewRenderer
-import kz.q19.webrtc.core.model.Target
-import kz.q19.webrtc.core.constraints.*
 import kz.q19.webrtc.mapper.*
 import kz.q19.webrtc.utils.*
 import org.webrtc.*
@@ -834,8 +834,12 @@ class PeerConnectionClient constructor(
             surfaceTextureHelper?.dispose()
             surfaceTextureHelper = null
 
-            localVideoCapturer?.dispose()
-            localVideoCapturer = null
+            try {
+                localVideoCapturer?.dispose()
+                localVideoCapturer = null
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
             localVideoSource?.dispose()
             localVideoSource = null
