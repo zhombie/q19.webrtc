@@ -173,9 +173,9 @@ class PeerConnectionClient constructor(
 
             if (options.videoCodecHwAcceleration) {
                 encoderFactory = DefaultVideoEncoderFactory(
-                    eglBase?.eglBaseContext,  /* enableIntelVp8Encoder */
-                    true,  /* enableH264HighProfile */
-                    true
+                    eglBase?.eglBaseContext,
+                    true,  /* enableIntelVp8Encoder */
+                    true  /* enableH264HighProfile */
                 )
 
                 decoderFactory = DefaultVideoDecoderFactory(eglBase?.eglBaseContext)
