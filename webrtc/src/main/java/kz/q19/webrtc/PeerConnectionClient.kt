@@ -388,16 +388,9 @@ class PeerConnectionClient constructor(
 
         localVideoCapturer?.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
 
-        localVideoCapturer?.startCapture(
-            options.localVideoWidth,
-            options.localVideoHeight,
-            options.localVideoFPS
-        )
+        localVideoCapturer?.startCapture(options.localVideoWidth, options.localVideoHeight, options.localVideoFPS)
 
-        localVideoTrack = peerConnectionFactory?.createVideoTrack(
-            options.localVideoTrackId,
-            localVideoSource
-        )
+        localVideoTrack = peerConnectionFactory?.createVideoTrack(options.localVideoTrackId, localVideoSource)
         localVideoTrack?.setEnabled(options.isLocalVideoEnabled)
 
         localVideoSink = ProxyVideoSink("LocalVideoSink")
@@ -410,12 +403,11 @@ class PeerConnectionClient constructor(
     private fun createAudioTrack(): AudioTrack? {
         Logger.debug(TAG, "createAudioTrack()")
 
-        localAudioSource = peerConnectionFactory?.createAudioSource(MediaConstraints())
+        Logger.debug(TAG, "Audio constraints: ${getAudioMediaConstraints()}")
 
-        localAudioTrack = peerConnectionFactory?.createAudioTrack(
-            options.localAudioTrackId,
-            localAudioSource
-        )
+        localAudioSource = peerConnectionFactory?.createAudioSource(getAudioMediaConstraints())
+
+        localAudioTrack = peerConnectionFactory?.createAudioTrack(options.localAudioTrackId, localAudioSource)
         localAudioTrack?.setEnabled(options.isLocalAudioEnabled)
 
         return localAudioTrack

@@ -1,3 +1,5 @@
+/* Reference: https://github.com/netguru/videochatguru-android */
+
 package kz.q19.webrtc.core.constraints
 
 import org.webrtc.MediaConstraints
