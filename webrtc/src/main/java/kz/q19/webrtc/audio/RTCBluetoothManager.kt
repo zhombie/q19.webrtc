@@ -51,7 +51,7 @@ internal class RTCBluetoothManager protected constructor(
 
     private val audioManager: AudioManager?
     private val handler: Handler
-    var scoConnectionAttempts = 0
+    var scoConnectionAttempts: Int = 0
     private var bluetoothState: State
     private val bluetoothServiceListener: ServiceListener
     private var bluetoothAdapter: BluetoothAdapter? = null
@@ -217,7 +217,9 @@ internal class RTCBluetoothManager protected constructor(
         }
     }
 
-    /** Returns the internal state.  */
+    /**
+     * Returns the internal state.
+     */
     val state: State
         get() {
             ThreadUtils.checkIsOnMainThread()
@@ -278,16 +280,15 @@ internal class RTCBluetoothManager protected constructor(
         // Register receiver for change in audio connection state of the Headset profile.
         bluetoothHeadsetFilter.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED)
         registerReceiver(bluetoothHeadsetReceiver, bluetoothHeadsetFilter)
-        Logger.debug(
-            TAG, "HEADSET profile state: "
-                    + stateToString(bluetoothAdapter?.getProfileConnectionState(BluetoothProfile.HEADSET))
-        )
+        Logger.debug(TAG, "HEADSET profile state: ${stateToString(bluetoothAdapter?.getProfileConnectionState(BluetoothProfile.HEADSET))}")
         Logger.debug(TAG, "Bluetooth proxy for headset profile has started")
         bluetoothState = State.HEADSET_UNAVAILABLE
         Logger.debug(TAG, "start done: BT state=$bluetoothState")
     }
 
-    /** Stops and closes all components related to Bluetooth audio.  */
+    /**
+     * Stops and closes all components related to Bluetooth audio.
+     */
     fun stop() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "stop: BT state=$bluetoothState")
@@ -411,7 +412,11 @@ internal class RTCBluetoothManager protected constructor(
         context.unregisterReceiver(receiver)
     }
 
-    protected fun getBluetoothProfileProxy(context: Context, listener: ServiceListener, profile: Int): Boolean {
+    protected fun getBluetoothProfileProxy(
+        context: Context,
+        listener: ServiceListener,
+        profile: Int
+    ): Boolean {
         return bluetoothAdapter?.getProfileProxy(context, listener, profile) == true
     }
 
@@ -419,7 +424,9 @@ internal class RTCBluetoothManager protected constructor(
         return context.checkPermission(permission, Process.myPid(), Process.myUid()) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** Logs the state of the local Bluetooth adapter.  */
+    /**
+     * Logs the state of the local Bluetooth adapter.
+     */
     @SuppressLint("HardwareIds")
     protected fun logBluetoothAdapterInfo(localAdapter: BluetoothAdapter) {
         if (hasPermission(context, Manifest.permission.BLUETOOTH)) {
@@ -441,21 +448,27 @@ internal class RTCBluetoothManager protected constructor(
         }
     }
 
-    /** Ensures that the audio manager updates its list of available audio devices.  */
+    /**
+     * Ensures that the audio manager updates its list of available audio devices.
+     */
     private fun updateAudioDeviceState() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "updateAudioDeviceState")
         rtcAudioManager.updateAudioDeviceState()
     }
 
-    /** Starts timer which times out after BLUETOOTH_SCO_TIMEOUT_MS milliseconds.  */
+    /**
+     * Starts timer which times out after BLUETOOTH_SCO_TIMEOUT_MS milliseconds.
+     */
     private fun startTimer() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "startTimer")
         handler.postDelayed(bluetoothTimeoutRunnable, BLUETOOTH_SCO_TIMEOUT_MS.toLong())
     }
 
-    /** Cancels any outstanding timer tasks.  */
+    /**
+     * Cancels any outstanding timer tasks.
+     */
     private fun cancelTimer() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "cancelTimer")
@@ -504,11 +517,15 @@ internal class RTCBluetoothManager protected constructor(
         Logger.debug(TAG, "bluetoothTimeout done: BT state=$bluetoothState")
     }
 
-    /** Checks whether audio uses Bluetooth SCO.  */
+    /**
+     * Checks whether audio uses Bluetooth SCO.
+     */
     private val isScoOn: Boolean
         get() = audioManager != null && audioManager.isBluetoothScoOn
 
-    /** Converts BluetoothAdapter states into local string representations.  */
+    /**
+     * Converts BluetoothAdapter states into local string representations.
+     */
     private fun stateToString(state: Int?): String {
         return when (state) {
             BluetoothAdapter.STATE_DISCONNECTED -> "DISCONNECTED"
@@ -517,16 +534,13 @@ internal class RTCBluetoothManager protected constructor(
             BluetoothAdapter.STATE_DISCONNECTING -> "DISCONNECTING"
             BluetoothAdapter.STATE_OFF -> "OFF"
             BluetoothAdapter.STATE_ON -> "ON"
-            BluetoothAdapter.STATE_TURNING_OFF ->
-                // Indicates the local Bluetooth adapter is turning off. Local clients should immediately
-                // attempt graceful disconnection of any remote links.
-                "TURNING_OFF"
-            BluetoothAdapter.STATE_TURNING_ON ->
-                // Indicates the local Bluetooth adapter is turning on. However local clients should wait
-                // for STATE_ON before attempting to use the adapter.
-                "TURNING_ON"
-            else ->
-                "INVALID"
+            // Indicates the local Bluetooth adapter is turning off. Local clients should immediately
+            // attempt graceful disconnection of any remote links.
+            BluetoothAdapter.STATE_TURNING_OFF -> "TURNING_OFF"
+            // Indicates the local Bluetooth adapter is turning on. However local clients should wait
+            // for STATE_ON before attempting to use the adapter.
+            BluetoothAdapter.STATE_TURNING_ON -> "TURNING_ON"
+            else -> "INVALID"
         }
     }
 

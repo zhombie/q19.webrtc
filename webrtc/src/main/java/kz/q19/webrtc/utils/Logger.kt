@@ -25,6 +25,15 @@ internal object Logger {
         }
     }
 
+    fun warn(tag: String, message: String) {
+        if (message.length > LIMIT) {
+            Log.w(tag, message.substring(0, LIMIT))
+            warn(tag, message.substring(LIMIT))
+        } else {
+            Log.w(tag, message)
+        }
+    }
+
     /** Information about the current build, taken from system properties.  */
     @JvmStatic
     fun logDeviceInfo(tag: String) {

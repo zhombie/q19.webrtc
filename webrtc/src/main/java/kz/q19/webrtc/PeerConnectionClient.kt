@@ -81,7 +81,7 @@ class PeerConnectionClient constructor(
 
     private var listener: Listener? = null
 
-    var audioManager: RTCAudioManager? = null
+    private var audioManager: RTCAudioManager? = null
 
     private val audioBooleanConstraints by lazy {
         RTCConstraints<AudioBooleanConstraints, Boolean>().apply {
