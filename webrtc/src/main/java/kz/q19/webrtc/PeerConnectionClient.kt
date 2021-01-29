@@ -80,8 +80,11 @@ class PeerConnectionClient constructor(
     private var remoteVideoScalingType: ScalingType? = null
 
     private var listener: Listener? = null
+    private var cameraBehaviorListener: CameraBehaviorListener? = null
 
     private var audioManager: RTCAudioManager? = null
+
+    private val cameraEventsHandler by lazy { CameraEventsHandler() }
 
     private val audioBooleanConstraints by lazy {
         RTCConstraints<AudioBooleanConstraints, Boolean>().apply {
@@ -109,7 +112,8 @@ class PeerConnectionClient constructor(
     @Throws(IllegalStateException::class)
     fun createPeerConnection(
         options: Options,
-        listener: Listener? = null
+        listener: Listener? = null,
+        cameraBehaviorListener: CameraBehaviorListener? = null
     ): PeerConnection? {
         Logger.debug(TAG, "createPeerConnection() -> options: $options")
 
@@ -138,6 +142,7 @@ class PeerConnectionClient constructor(
         Logger.debug(TAG, "iceServers: $iceServers")
 
         this.listener = listener
+        this.cameraBehaviorListener = cameraBehaviorListener
 
         isInitiator = false
         localSessionDescription = null
@@ -374,7 +379,12 @@ class PeerConnectionClient constructor(
             return null
         }
 
-        localVideoCapturer = createVideoCapturer()
+        localVideoCapturer = try {
+            createVideoCapturer()
+        } catch (e: Exception) {
+            listener?.onLocalVideoCapturerCreateError(e)
+            return null
+        }
 
         localVideoCapturer?.initialize(surfaceTextureHelper, context, localVideoSource?.capturerObserver)
 
@@ -428,7 +438,7 @@ class PeerConnectionClient constructor(
         // find the front facing camera and return it.
         deviceNames
             .filter { enumerator.isFrontFacing(it) }
-            .mapNotNull { enumerator.createCapturer(it, null) }
+            .mapNotNull { enumerator.createCapturer(it, cameraEventsHandler) }
             .forEach { return it }
         return null
     }
@@ -618,12 +628,22 @@ class PeerConnectionClient constructor(
         return factory.createPeerConnection(rtcConfig, peerConnectionObserver)
     }
 
-    fun onSwitchCamera() {
+    fun onSwitchCamera(
+        onDone: (isFrontFacing: Boolean) -> Unit,
+        onError: (error: String?) -> Unit
+    ) {
         executor.execute {
-            localVideoCapturer?.let { videoCapturer ->
-                if (videoCapturer is CameraVideoCapturer) {
-                    videoCapturer.switchCamera(null)
-                }
+            val videoCapturer = localVideoCapturer
+            if (videoCapturer is CameraVideoCapturer) {
+                videoCapturer.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
+                    override fun onCameraSwitchDone(isFrontFacing: Boolean) {
+                        onDone(isFrontFacing)
+                    }
+
+                    override fun onCameraSwitchError(error: String?) {
+                        onError(error)
+                    }
+                })
             }
         }
     }
@@ -975,6 +995,40 @@ class PeerConnectionClient constructor(
         }
     }
 
+    private inner class CameraEventsHandler : CameraVideoCapturer.CameraEventsHandler {
+
+        override fun onCameraOpening(cameraName: String?) {
+            Logger.debug(TAG, "onCameraOpening() -> cameraName: $cameraName")
+            cameraBehaviorListener?.onCameraOpening(cameraName)
+        }
+
+        override fun onFirstFrameAvailable() {
+            Logger.debug(TAG, "onFirstFrameAvailable()")
+            cameraBehaviorListener?.onFirstFrameAvailable()
+        }
+
+        override fun onCameraFreezed(errorDescription: String?) {
+            Logger.debug(TAG, "onCameraFreezed() -> errorDescription: $errorDescription")
+            cameraBehaviorListener?.onCameraFreezed(errorDescription)
+        }
+
+        override fun onCameraDisconnected() {
+            Logger.debug(TAG, "onCameraDisconnected()")
+            cameraBehaviorListener?.onCameraDisconnected()
+        }
+
+        override fun onCameraClosed() {
+            Logger.debug(TAG, "onCameraClosed()")
+            cameraBehaviorListener?.onCameraClosed()
+        }
+
+        override fun onCameraError(errorDescription: String?) {
+            Logger.debug(TAG, "onCameraError()")
+            cameraBehaviorListener?.onCameraError(errorDescription)
+        }
+
+    }
+
     private fun getAudioMediaConstraints(): MediaConstraints = MediaConstraints().apply {
         addConstraints(audioBooleanConstraints, audioIntegerConstraints)
     }
@@ -1008,7 +1062,29 @@ class PeerConnectionClient constructor(
         fun onAddRemoteStream(mediaStream: MediaStream)
         fun onRemoveStream(mediaStream: MediaStream)
 
+        fun onLocalVideoCapturerCreateError(e: Exception)
         fun onPeerConnectionError(errorMessage: String)
+    }
+
+    interface CameraBehaviorListener {
+        // Callback invoked when camera is opening
+        fun onCameraOpening(cameraName: String?)
+
+        // Callback invoked when first camera frame is available after camera is opened
+        fun onFirstFrameAvailable()
+
+        // Invoked when camera stops receiving frames
+        fun onCameraFreezed(errorDescription: String?)
+
+        // Camera error handler - invoked when camera can not be opened or any
+        // camera exception happens on camera thread.
+        fun onCameraError(errorDescription: String?)
+
+        // Called when camera is disconnected
+        fun onCameraDisconnected()
+
+        // Callback invoked when camera closed
+        fun onCameraClosed()
     }
 
 }
