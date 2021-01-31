@@ -88,7 +88,7 @@ class PeerConnectionClient constructor(
 
     private val audioBooleanConstraints by lazy {
         RTCConstraints<AudioBooleanConstraints, Boolean>().apply {
-            addMandatoryConstraint(AudioBooleanConstraints.DISABLE_AUDIO_PROCESSING, true)
+//            addMandatoryConstraint(AudioBooleanConstraints.DISABLE_AUDIO_PROCESSING, true)
         }
     }
 
@@ -104,8 +104,8 @@ class PeerConnectionClient constructor(
 
     private val peerConnectionConstraints by lazy {
         RTCConstraints<PeerConnectionConstraints, Boolean>().apply {
-            addMandatoryConstraint(PeerConnectionConstraints.DTLS_SRTP_KEY_AGREEMENT_CONSTRAINT, true)
-            addMandatoryConstraint(PeerConnectionConstraints.GOOG_CPU_OVERUSE_DETECTION, true)
+//            addMandatoryConstraint(PeerConnectionConstraints.DTLS_SRTP_KEY_AGREEMENT_CONSTRAINT, true)
+//            addMandatoryConstraint(PeerConnectionConstraints.GOOG_CPU_OVERUSE_DETECTION, true)
         }
     }
 
