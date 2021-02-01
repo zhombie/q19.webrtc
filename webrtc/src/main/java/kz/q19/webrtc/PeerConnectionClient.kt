@@ -2,9 +2,9 @@
 
 package kz.q19.webrtc
 
+import android.app.Activity
 import android.content.Context
 import android.os.Handler
-import android.os.Looper
 import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.audio.RTCAudioManager
 import kz.q19.webrtc.core.constraints.*
@@ -35,7 +35,6 @@ class PeerConnectionClient constructor(
     }
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val uiHandler: Handler = Handler(Looper.getMainLooper())
 
     private var iceServers: List<PeerConnection.IceServer>? = null
 
@@ -243,7 +242,7 @@ class PeerConnectionClient constructor(
             return
         }
 
-        uiHandler.post {
+        runOnUiThread {
             localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             localSurfaceViewRenderer?.setEnableHardwareScaler(true)
             localSurfaceViewRenderer?.setMirror(isMirrored)
@@ -268,7 +267,7 @@ class PeerConnectionClient constructor(
             return
         }
 
-        uiHandler.post {
+        runOnUiThread {
             remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
             remoteSurfaceViewRenderer?.setMirror(isMirrored)
@@ -280,14 +279,14 @@ class PeerConnectionClient constructor(
     }
 
     fun setLocalVideoScalingType(scalingType: kz.q19.webrtc.core.model.ScalingType) {
-        uiHandler.post {
+        runOnUiThread {
             localVideoScalingType = ScalingTypeMapper.map(scalingType)
             localSurfaceViewRenderer?.setScalingType(localVideoScalingType)
         }
     }
 
     fun setRemoteVideoScalingType(scalingType: kz.q19.webrtc.core.model.ScalingType) {
-        uiHandler.post {
+        runOnUiThread {
             remoteVideoScalingType = ScalingTypeMapper.map(scalingType)
             remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
@@ -354,7 +353,7 @@ class PeerConnectionClient constructor(
     private fun startAudioManager() {
         Logger.debug(TAG, "startAudioManager()")
 
-        uiHandler.post {
+        runOnUiThread {
             audioManager = RTCAudioManager.create(context)
             audioManager?.start { selectedAudioDevice, availableAudioDevices ->
                 Logger.debug(TAG, "audioManager: $availableAudioDevices, $selectedAudioDevice")
@@ -813,7 +812,7 @@ class PeerConnectionClient constructor(
     }
 
     fun dispose() {
-        uiHandler.post {
+        runOnUiThread {
             audioManager?.stop()
             audioManager = null
 
@@ -1019,6 +1018,18 @@ class PeerConnectionClient constructor(
             cameraBehaviorListener?.onCameraError(errorDescription)
         }
 
+    }
+
+    fun runOnUiThread(action: Runnable) {
+        try {
+            if (context is Activity) {
+                context.runOnUiThread(action)
+            } else {
+                Handler(context.mainLooper).post(action)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun getAudioMediaConstraints(): MediaConstraints = MediaConstraints().apply {
