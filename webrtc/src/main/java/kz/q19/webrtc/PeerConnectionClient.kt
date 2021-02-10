@@ -1020,7 +1020,7 @@ class PeerConnectionClient constructor(
 
     }
 
-    fun runOnUiThread(action: Runnable) {
+    private fun runOnUiThread(action: Runnable) {
         try {
             if (context is Activity) {
                 context.runOnUiThread(action)

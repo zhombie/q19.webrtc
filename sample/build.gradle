@@ -25,15 +25,32 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 }
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
+
+    // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
+    implementation project(":webrtc")
+    implementation 'com.github.zhombie:q19.domain:1.3.8'
+
+    // AppCompat
     implementation 'androidx.appcompat:appcompat:1.2.0'
 
-    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-
+    // Jetpack Core
     implementation 'androidx.core:core-ktx:1.3.2'
+
+    // WebRTC
+    implementation 'org.webrtc:google-webrtc:1.0.32006'
 }
