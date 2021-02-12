@@ -1,10 +1,9 @@
 package kz.q19.webrtc
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import kz.q19.domain.model.webrtc.IceServer
 import kz.q19.webrtc.core.ui.SurfaceViewRenderer
