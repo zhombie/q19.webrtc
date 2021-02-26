@@ -46,7 +46,7 @@ dependencies {
     implementation project(":webrtc")
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.3.9'
+    implementation 'com.github.zhombie:q19.domain:1.4.2'
 
     // AppCompat
     implementation 'androidx.appcompat:appcompat:1.2.0'
