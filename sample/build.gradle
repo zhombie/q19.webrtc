@@ -42,11 +42,8 @@ dependencies {
     // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
-    // Library
-    implementation project(":webrtc")
-
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.4.2'
+    implementation 'com.github.zhombie:q19.domain:1.4.3'
 
     // AppCompat
     implementation 'androidx.appcompat:appcompat:1.2.0'
@@ -56,4 +53,7 @@ dependencies {
 
     // WebRTC
     implementation 'org.webrtc:google-webrtc:1.0.32006'
+
+    // Library
+    implementation project(":webrtc")
 }

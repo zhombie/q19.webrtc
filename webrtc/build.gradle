@@ -41,10 +41,10 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     // Annotation
-    implementation 'androidx.annotation:annotation:1.1.0'
+    implementation 'androidx.annotation:annotation:1.2.0'
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.4.2'
+    implementation 'com.github.zhombie:q19.domain:1.4.3'
 
     // WebRTC
     implementation 'org.webrtc:google-webrtc:1.0.32006'
