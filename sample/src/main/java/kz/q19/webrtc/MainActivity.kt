@@ -1,18 +1,84 @@
 package kz.q19.webrtc
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import kz.q19.domain.model.webrtc.IceServer
 import kz.q19.webrtc.core.ui.SurfaceViewRenderer
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private val TAG = MainActivity::class.java.simpleName
+
+        private val iceServers by lazy {
+            listOf(
+                IceServer(
+                    url = "stun:global.stun.twilio.com:3478?transport=udp",
+                    urls = "stun:global.stun.twilio.com:3478?transport=udp"
+                )
+            )
+        }
+
+        private val permissions = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+    }
+
     private var surfaceViewRenderer: SurfaceViewRenderer? = null
 
     private var peerConnectionClient: PeerConnectionClient? = null
+
+    private val openLocationSettings =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                Log.d(TAG, "ActivityResultContracts.StartActivityForResult() -> Success")
+            } else {
+                Log.d(TAG, "ActivityResultContracts.StartActivityForResult() -> Fail")
+            }
+        }
+
+    private val requestPermissions = requestMultiplePermissions(
+        onAllGranted = {
+            peerConnectionClient = PeerConnectionClient(this)
+            peerConnectionClient?.setLocalSurfaceView(surfaceViewRenderer)
+            peerConnectionClient?.createPeerConnection(
+                Options(
+                    isLocalAudioEnabled = true,
+                    isLocalVideoEnabled = true,
+                    videoCodecHwAcceleration = true,
+                    iceServers = iceServers
+                )
+            )
+            peerConnectionClient?.initLocalCameraStream(
+                isMirrored = true,
+                isZOrderMediaOverlay = false
+            )
+            peerConnectionClient?.addLocalStreamToPeer()
+        },
+        onDenied = {
+            launchApplicationSettings()
+        },
+        onExplained = {
+            AlertDialog.Builder(this)
+                .setTitle("Attention")
+                .setMessage("Grant access to permissions: ${permissions.contentToString()}")
+                .setPositiveButton("Grant access") { dialog, _ ->
+                    dialog.dismiss()
+                    launchApplicationSettings()
+                }
+                .setNegativeButton("Cancel") { dialog, _ ->
+                    dialog.dismiss()
+                    finish()
+                }
+                .show()
+        }
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,52 +89,35 @@ class MainActivity : AppCompatActivity() {
         requestPermissions()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    override fun onResume() {
+        super.onResume()
 
-        if (requestCode == 123) {
-            if (permissions.all { ActivityCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
-                peerConnectionClient = PeerConnectionClient(this)
-                peerConnectionClient?.setLocalSurfaceView(surfaceViewRenderer)
-                peerConnectionClient?.createPeerConnection(
-                    Options(
-                        isLocalAudioEnabled = true,
-                        isLocalVideoEnabled = true,
-                        videoCodecHwAcceleration = true,
-                        iceServers = listOf(
-                            IceServer(
-                                url = "stun:global.stun.twilio.com:3478?transport=udp",
-                                urls = "stun:global.stun.twilio.com:3478?transport=udp"
-                            )
-                        )
-                    )
-                )
-                peerConnectionClient?.initLocalCameraStream(
-                    isMirrored = true,
-                    isZOrderMediaOverlay = false
-                )
-                peerConnectionClient?.addLocalStreamToPeer()
-            } else {
-                requestPermissions()
-            }
-        }
+        peerConnectionClient?.startLocalVideoCapture()
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        peerConnectionClient?.stopLocalVideoCapture()
     }
 
     override fun onDestroy() {
         peerConnectionClient?.dispose()
         peerConnectionClient = null
+
         super.onDestroy()
+
+        surfaceViewRenderer = null
     }
 
     private fun requestPermissions() {
-        ActivityCompat.requestPermissions(
-            this,
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO),
-            123
+        requestPermissions.launch(permissions)
+    }
+
+    private fun launchApplicationSettings() {
+        openLocationSettings.launch(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.fromParts("package", packageName, null))
         )
     }
 

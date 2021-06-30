@@ -6,16 +6,16 @@ plugins {
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.3"
+    buildToolsVersion '30.0.3'
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 30
 
         versionCode 1
-        versionName "1.0"
+        versionName '1.0'
 
-        consumerProguardFiles "consumer-rules.pro"
+        consumerProguardFiles 'consumer-rules.pro'
     }
 
     buildTypes {
@@ -32,7 +32,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = '1.8'
     }
 }
 
@@ -44,7 +44,7 @@ dependencies {
     implementation 'androidx.annotation:annotation:1.2.0'
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.4.3'
+    implementation 'com.github.zhombie:q19.domain:1.4.5'
 
     // WebRTC
     implementation 'org.webrtc:google-webrtc:1.0.32006'
