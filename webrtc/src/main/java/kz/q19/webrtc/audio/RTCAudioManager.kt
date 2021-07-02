@@ -1,7 +1,6 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate", "PrivatePropertyName")
-
 package kz.q19.webrtc.audio
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -23,7 +22,9 @@ class RTCAudioManager private constructor(private val context: Context) {
     companion object {
         private val TAG = RTCAudioManager::class.java.simpleName
 
-        /** Construction.  */
+        /**
+         * Construction
+         */
         fun create(context: Context): RTCAudioManager {
             return RTCAudioManager(context)
         }
@@ -162,13 +163,12 @@ class RTCAudioManager private constructor(private val context: Context) {
             val state = intent.getIntExtra("state", STATE_UNPLUGGED)
             val microphone = intent.getIntExtra("microphone", HAS_NO_MIC)
             val name = intent.getStringExtra("name")
-            Logger.debug(
-                TAG, "WiredHeadsetReceiver.onReceive $threadInfo: a=${intent.action}, " +
-                        "s=" + (if (state == STATE_UNPLUGGED) "unplugged" else "plugged") + ", " +
-                        "m=" + (if (microphone == HAS_MIC) "mic" else "no mic") + ", " +
-                        "n=" + name + ", " +
-                        "sb=" + isInitialStickyBroadcast
-            )
+            Logger.debug(TAG, "WiredHeadsetReceiver.onReceive: $threadInfo: " +
+                    "a=${intent.action}, " +
+                    "s=" + (if (state == STATE_UNPLUGGED) "unplugged" else "plugged") + ", " +
+                    "m=" + (if (microphone == HAS_MIC) "mic" else "no mic") + ", " +
+                    "n=" + name + ", " +
+                    "sb=" + isInitialStickyBroadcast)
             audioManagerCompat.savedWiredHeadset = state == STATE_PLUGGED
             updateAudioDeviceState()
         }
@@ -357,8 +357,13 @@ class RTCAudioManager private constructor(private val context: Context) {
      */
     fun updateAudioDeviceState() {
         ThreadUtils.checkIsOnMainThread()
-        Logger.debug(TAG, "--- updateAudioDeviceState: wired headset=${audioManagerCompat.savedWiredHeadset}, BT state=${bluetoothManager.state}")
-        Logger.debug(TAG, "Device status: available=$audioDevices, selected=$selectedAudioDevice, user selected=$userSelectedAudioDevice")
+        Logger.debug(TAG, "--- updateAudioDeviceState: " +
+                "wired headset=${audioManagerCompat.savedWiredHeadset}, " +
+                "BT state=${bluetoothManager.state}")
+        Logger.debug(TAG, "Device status: " +
+                "available=$audioDevices, " +
+                "selected=$selectedAudioDevice, " +
+                "user selected=$userSelectedAudioDevice")
 
         // Check if any Bluetooth headset is connected. The internal BT state will
         // change accordingly.
@@ -418,7 +423,10 @@ class RTCAudioManager private constructor(private val context: Context) {
                     && (userSelectedAudioDevice != AudioDevice.NONE
                     && userSelectedAudioDevice != AudioDevice.BLUETOOTH))
         if (bluetoothManager.state == RTCBluetoothManager.State.HEADSET_AVAILABLE || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTING || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTED) {
-            Logger.debug(TAG, "Need BT audio: start=$needBluetoothAudioStart, stop=$needBluetoothAudioStop, BT state=${bluetoothManager.state}")
+            Logger.debug(TAG, "Need BT audio: " +
+                    "start=$needBluetoothAudioStart, " +
+                    "stop=$needBluetoothAudioStop, " +
+                    "BT state=${bluetoothManager.state}")
         }
 
         // Start or stop Bluetooth SCO connection given states set earlier.
@@ -460,7 +468,8 @@ class RTCAudioManager private constructor(private val context: Context) {
         if (newAudioDevice != selectedAudioDevice || audioDeviceSetUpdated) {
             // Do the required device switch.
             setAudioDeviceInternal(newAudioDevice)
-            Logger.debug(TAG, "New device status: available=$audioDevices, selected=$newAudioDevice")
+            Logger.debug(TAG, "New device status: " +
+                    "available=$audioDevices, selected=$newAudioDevice")
             // Notify a listening client that audio device has been changed.
             audioManagerEvents?.onAudioDeviceChanged(selectedAudioDevice, audioDevices)
         }

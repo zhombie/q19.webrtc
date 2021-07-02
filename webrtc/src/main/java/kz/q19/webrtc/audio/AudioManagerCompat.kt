@@ -1,4 +1,5 @@
 package kz.q19.webrtc.audio
+
 import android.content.Context
 import android.content.Intent
 import android.media.*
@@ -202,7 +203,6 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
 
     }
 
-    @Suppress("DEPRECATION")
     private open class Api19AudioManagerCompat constructor(
         context: Context
     ) : AudioManagerCompat(context) {

@@ -1,5 +1,3 @@
-@file:Suppress("unused")
-
 package kz.q19.webrtc.audio
 
 import android.content.Context
@@ -8,6 +6,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
+import kz.q19.utils.android.sensorManager
 import kz.q19.webrtc.utils.AssertUtils.assertIsTrue
 import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
@@ -29,7 +28,9 @@ internal class RTCProximitySensor private constructor(
     companion object {
         private val TAG = RTCProximitySensor::class.java.simpleName
 
-        /** Construction  */
+        /**
+         * Construction
+         */
         fun create(context: Context, sensorStateListener: Runnable): RTCProximitySensor {
             return RTCProximitySensor(context, sensorStateListener)
         }
@@ -48,7 +49,7 @@ internal class RTCProximitySensor private constructor(
     init {
         Logger.debug(TAG, "RTCProximitySensor: $threadInfo")
         onSensorStateListener = sensorStateListener
-        sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager?
+        sensorManager = context.sensorManager
     }
 
     /**
@@ -72,9 +73,7 @@ internal class RTCProximitySensor private constructor(
     fun stop() {
         threadChecker.checkIsOnValidThread()
         Logger.debug(TAG, "stop: $threadInfo")
-        if (proximitySensor == null) {
-            return
-        }
+        if (proximitySensor == null) return
         sensorManager?.unregisterListener(this, proximitySensor)
     }
 
@@ -124,13 +123,9 @@ internal class RTCProximitySensor private constructor(
      * cases.
      */
     private fun initDefaultSensor(): Boolean {
-        if (proximitySensor != null) {
-            return true
-        }
+        if (proximitySensor != null) return true
         proximitySensor = sensorManager?.getDefaultSensor(Sensor.TYPE_PROXIMITY)
-        if (proximitySensor == null) {
-            return false
-        }
+        if (proximitySensor == null) return false
         logProximitySensorInfo()
         return true
     }
@@ -139,9 +134,7 @@ internal class RTCProximitySensor private constructor(
      * Helper method for logging information about the proximity sensor.
      */
     private fun logProximitySensorInfo() {
-        if (proximitySensor == null) {
-            return
-        }
+        if (proximitySensor == null) return
         val info = StringBuilder("Proximity sensor: ")
         info.append("name=").append(proximitySensor?.name)
         info.append(", vendor: ").append(proximitySensor?.vendor)

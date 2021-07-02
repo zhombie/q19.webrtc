@@ -1,5 +1,3 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate")
-
 package kz.q19.webrtc
 
 import android.app.Activity
@@ -80,6 +78,8 @@ class PeerConnectionClient constructor(
 
     private var listener: Listener? = null
     private var cameraBehaviorListener: CameraBehaviorListener? = null
+
+    private var audioDeviceModule: AudioDeviceModule? = null
 
     private var audioManager: RTCAudioManager? = null
 
@@ -188,7 +188,7 @@ class PeerConnectionClient constructor(
                 decoderFactory = SoftwareVideoDecoderFactory()
             }
 
-            val audioDeviceModule: AudioDeviceModule = createJavaAudioDevice()
+            audioDeviceModule = createJavaAudioDeviceModule()
 
             peerConnectionFactory = PeerConnectionFactory.builder()
                 .setOptions(peerConnectionFactoryOptions)
@@ -205,7 +205,7 @@ class PeerConnectionClient constructor(
         return future.get()
     }
 
-    private fun createJavaAudioDevice(): JavaAudioDeviceModule {
+    private fun createJavaAudioDeviceModule(): JavaAudioDeviceModule {
         return JavaAudioDeviceModule.builder(context)
             .setUseHardwareAcousticEchoCanceler(true)
             .setUseHardwareNoiseSuppressor(true)
@@ -747,12 +747,8 @@ class PeerConnectionClient constructor(
 
     fun setRemoteVideoSink(target: Target): Target? {
         val set = when (target) {
-            Target.LOCAL -> {
-                remoteVideoSink?.setTarget(localSurfaceViewRenderer)
-            }
-            Target.REMOTE -> {
-                remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
-            }
+            Target.LOCAL -> remoteVideoSink?.setTarget(localSurfaceViewRenderer)
+            Target.REMOTE -> remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
         }
         return if (set == true) target else null
     }
@@ -812,6 +808,9 @@ class PeerConnectionClient constructor(
     }
 
     fun dispose() {
+        audioDeviceModule?.release()
+        audioDeviceModule = null
+
         runOnUiThread {
             audioManager?.stop()
             audioManager = null
