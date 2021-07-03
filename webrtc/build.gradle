@@ -49,5 +49,5 @@ dependencies {
 
     // WebRTC
 //    implementation 'org.webrtc:google-webrtc:1.0.32006'  // Remote repository is outdated
-    api files('libs/libwebrtc.aar')
+    api 'ch.threema:webrtc-android:91.0.1'
 }
