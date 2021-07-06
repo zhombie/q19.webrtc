@@ -351,13 +351,13 @@ internal open class RTCBluetoothManager protected constructor(
         return true
     }
 
-    /** Stops Bluetooth SCO connection with remote device.  */
+    /**
+     * Stops Bluetooth SCO connection with remote device
+     */
     fun stopScoAudio() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "stopScoAudio: BT state=$bluetoothState, SCO is on: $isScoOn")
-        if (bluetoothState != State.SCO_CONNECTING && bluetoothState != State.SCO_CONNECTED) {
-            return
-        }
+        if (bluetoothState != State.SCO_CONNECTING && bluetoothState != State.SCO_CONNECTED) return
         cancelTimer()
         audioManager?.stopBluetoothSco()
         audioManager?.isBluetoothScoOn = false
@@ -389,7 +389,7 @@ internal open class RTCBluetoothManager protected constructor(
             bluetoothState = State.HEADSET_AVAILABLE
             Logger.debug(TAG, "Connected bluetooth headset: " +
                     "name=${bluetoothDevice?.name}, " +
-                    "state=" + stateToString(bluetoothHeadset?.getConnectionState(bluetoothDevice)) + ", " +
+                    "state=${stateToString(bluetoothHeadset?.getConnectionState(bluetoothDevice))}, " +
                     "SCO audio=${bluetoothHeadset?.isAudioConnected(bluetoothDevice)}"
             )
         }

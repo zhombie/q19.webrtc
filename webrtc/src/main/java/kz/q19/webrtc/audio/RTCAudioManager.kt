@@ -1,6 +1,5 @@
 package kz.q19.webrtc.audio
 
-import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -91,7 +90,7 @@ class RTCAudioManager private constructor(private val context: Context) {
     private var proximitySensor: RTCProximitySensor?
 
     // Handles all tasks related to Bluetooth headset devices.
-    private val bluetoothManager: RTCBluetoothManager
+    private var bluetoothManager: RTCBluetoothManager?
 
     // Contains a list of available audio devices. A Set collection is used to
     // avoid duplicate elements.
@@ -167,8 +166,8 @@ class RTCAudioManager private constructor(private val context: Context) {
                     "a=${intent.action}, " +
                     "s=" + (if (state == STATE_UNPLUGGED) "unplugged" else "plugged") + ", " +
                     "m=" + (if (microphone == HAS_MIC) "mic" else "no mic") + ", " +
-                    "n=" + name + ", " +
-                    "sb=" + isInitialStickyBroadcast)
+                    "n=$name, " +
+                    "sb=$isInitialStickyBroadcast")
             audioManagerCompat.savedWiredHeadset = state == STATE_PLUGGED
             updateAudioDeviceState()
         }
@@ -208,7 +207,7 @@ class RTCAudioManager private constructor(private val context: Context) {
 
         // Initialize and start Bluetooth if a BT device is available or initiate
         // detection of new (enabled) BT devices.
-        bluetoothManager.start()
+        bluetoothManager?.start()
 
         // Do initial selection of audio device. This setting can later be changed
         // either by adding/removing a BT or wired headset or by covering/uncovering
@@ -233,7 +232,8 @@ class RTCAudioManager private constructor(private val context: Context) {
 
         unregisterReceiver(wiredHeadsetReceiver)
 
-        bluetoothManager.stop()
+        bluetoothManager?.stop()
+        bluetoothManager = null
 
         // Restore previously stored audio states.
         audioManagerCompat.restoreState()
@@ -359,7 +359,7 @@ class RTCAudioManager private constructor(private val context: Context) {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "--- updateAudioDeviceState: " +
                 "wired headset=${audioManagerCompat.savedWiredHeadset}, " +
-                "BT state=${bluetoothManager.state}")
+                "BT state=${bluetoothManager?.state}")
         Logger.debug(TAG, "Device status: " +
                 "available=$audioDevices, " +
                 "selected=$selectedAudioDevice, " +
@@ -368,13 +368,17 @@ class RTCAudioManager private constructor(private val context: Context) {
         // Check if any Bluetooth headset is connected. The internal BT state will
         // change accordingly.
         // TODO(henrika): perhaps wrap required state into BT manager.
-        if (bluetoothManager.state == RTCBluetoothManager.State.HEADSET_AVAILABLE || bluetoothManager.state == RTCBluetoothManager.State.HEADSET_UNAVAILABLE || bluetoothManager.state == RTCBluetoothManager.State.SCO_DISCONNECTING) {
-            bluetoothManager.updateDevice()
+        if (bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_AVAILABLE ||
+            bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_UNAVAILABLE ||
+            bluetoothManager?.state == RTCBluetoothManager.State.SCO_DISCONNECTING) {
+            bluetoothManager?.updateDevice()
         }
 
         // Update the set of available audio devices.
         val newAudioDevices: MutableSet<AudioDevice> = HashSet()
-        if (bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTED || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTING || bluetoothManager.state == RTCBluetoothManager.State.HEADSET_AVAILABLE) {
+        if (bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTED ||
+            bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTING ||
+            bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_AVAILABLE) {
             newAudioDevices.add(AudioDevice.BLUETOOTH)
         }
         if (audioManagerCompat.savedWiredHeadset) {
@@ -393,7 +397,8 @@ class RTCAudioManager private constructor(private val context: Context) {
         // Update the existing audio device set.
         audioDevices = newAudioDevices
         // Correct user selected audio devices if needed.
-        if (bluetoothManager.state == RTCBluetoothManager.State.HEADSET_UNAVAILABLE && userSelectedAudioDevice == AudioDevice.BLUETOOTH) {
+        if (bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_UNAVAILABLE &&
+            userSelectedAudioDevice == AudioDevice.BLUETOOTH) {
             // If BT is not available, it can't be the user selection.
             userSelectedAudioDevice = AudioDevice.NONE
         }
@@ -411,32 +416,34 @@ class RTCAudioManager private constructor(private val context: Context) {
         // Need to start Bluetooth if it is available and user either selected it explicitly or
         // user did not select any output device.
         val needBluetoothAudioStart =
-            (bluetoothManager.state == RTCBluetoothManager.State.HEADSET_AVAILABLE
+            (bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_AVAILABLE
                     && (userSelectedAudioDevice == AudioDevice.NONE
                     || userSelectedAudioDevice == AudioDevice.BLUETOOTH))
 
         // Need to stop Bluetooth audio if user selected different device and
         // Bluetooth SCO connection is established or in the process.
         val needBluetoothAudioStop =
-            ((bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTED
-                    || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTING)
+            ((bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTED
+                    || bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTING)
                     && (userSelectedAudioDevice != AudioDevice.NONE
                     && userSelectedAudioDevice != AudioDevice.BLUETOOTH))
-        if (bluetoothManager.state == RTCBluetoothManager.State.HEADSET_AVAILABLE || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTING || bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTED) {
+        if (bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_AVAILABLE ||
+            bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTING ||
+            bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTED) {
             Logger.debug(TAG, "Need BT audio: " +
                     "start=$needBluetoothAudioStart, " +
                     "stop=$needBluetoothAudioStop, " +
-                    "BT state=${bluetoothManager.state}")
+                    "BT state=${bluetoothManager?.state}")
         }
 
         // Start or stop Bluetooth SCO connection given states set earlier.
         if (needBluetoothAudioStop) {
-            bluetoothManager.stopScoAudio()
-            bluetoothManager.updateDevice()
+            bluetoothManager?.stopScoAudio()
+            bluetoothManager?.updateDevice()
         }
         if (needBluetoothAudioStart && !needBluetoothAudioStop) {
             // Attempt to start Bluetooth SCO audio (takes a few second to start).
-            if (!bluetoothManager.startScoAudio()) {
+            if (bluetoothManager?.startScoAudio() == false) {
                 // Remove BLUETOOTH from list of available devices since SCO failed.
                 audioDevices.remove(AudioDevice.BLUETOOTH)
                 audioDeviceSetUpdated = true
@@ -445,7 +452,7 @@ class RTCAudioManager private constructor(private val context: Context) {
 
         // Update selected audio device.
         val newAudioDevice: AudioDevice = when {
-            bluetoothManager.state == RTCBluetoothManager.State.SCO_CONNECTED -> {
+            bluetoothManager?.state == RTCBluetoothManager.State.SCO_CONNECTED -> {
                 // If a Bluetooth is connected, then it should be used as output audio
                 // device. Note that it is not sufficient that a headset is available;
                 // an active SCO channel must also be up and running.
