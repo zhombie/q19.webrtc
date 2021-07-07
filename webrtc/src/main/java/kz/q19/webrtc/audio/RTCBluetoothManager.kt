@@ -109,9 +109,8 @@ internal open class RTCBluetoothManager protected constructor(
         // Once we have the profile proxy object, we can use it to monitor the state of the
         // connection and perform other operations that are relevant to the headset profile.
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-            if (profile != BluetoothProfile.HEADSET || bluetoothState == State.UNINITIALIZED) {
-                return
-            }
+            if (profile != BluetoothProfile.HEADSET) return
+            if (bluetoothState == State.UNINITIALIZED) return
             Logger.debug(TAG, "BluetoothServiceListener.onServiceConnected: " +
                     "BT state=$bluetoothState")
             // Android only supports one connected Bluetooth Headset at a time.
@@ -126,9 +125,8 @@ internal open class RTCBluetoothManager protected constructor(
          * Notifies the client when the proxy object has been disconnected from the service.
          */
         override fun onServiceDisconnected(profile: Int) {
-            if (profile != BluetoothProfile.HEADSET || bluetoothState == State.UNINITIALIZED) {
-                return
-            }
+            if (profile != BluetoothProfile.HEADSET) return
+            // if (bluetoothState == State.UNINITIALIZED) return
             Logger.debug(TAG, "BluetoothServiceListener.onServiceDisconnected: " +
                     "BT state=$bluetoothState")
             stopScoAudio()
@@ -280,8 +278,8 @@ internal open class RTCBluetoothManager protected constructor(
         // Register receiver for change in audio connection state of the Headset profile.
         bluetoothHeadsetFilter.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED)
         registerReceiver(bluetoothHeadsetReceiver, bluetoothHeadsetFilter)
-        Logger.debug(TAG, "HEADSET profile state: " +
-                stateToString(bluetoothAdapter?.getProfileConnectionState(BluetoothProfile.HEADSET)))
+        Logger.debug(TAG, "HEADSET " +
+                "profile state: ${stateToString(bluetoothAdapter?.getProfileConnectionState(BluetoothProfile.HEADSET))}")
         Logger.debug(TAG, "Bluetooth proxy for headset profile has started")
         bluetoothState = State.HEADSET_UNAVAILABLE
         Logger.debug(TAG, "start done: BT state=$bluetoothState")
@@ -297,7 +295,7 @@ internal open class RTCBluetoothManager protected constructor(
         // Stop BT SCO connection with remote device if needed.
         stopScoAudio()
         // Close down remaining BT resources.
-        if (bluetoothState == State.UNINITIALIZED) return
+//        if (bluetoothState == State.UNINITIALIZED) return
         unregisterReceiver(bluetoothHeadsetReceiver)
         cancelTimer()
         bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
@@ -399,13 +397,11 @@ internal open class RTCBluetoothManager protected constructor(
     /**
      * Stubs for test mocks.
      */
-    protected fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?): Intent? {
-        return context.registerReceiver(receiver, filter)
-    }
+    protected fun registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent? =
+        context.registerReceiver(receiver, filter)
 
-    protected fun unregisterReceiver(receiver: BroadcastReceiver?) {
+    protected fun unregisterReceiver(receiver: BroadcastReceiver) =
         context.unregisterReceiver(receiver)
-    }
 
     protected fun getBluetoothProfileProxy(
         context: Context,
