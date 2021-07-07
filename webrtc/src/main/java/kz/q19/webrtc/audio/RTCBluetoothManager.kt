@@ -53,7 +53,7 @@ internal open class RTCBluetoothManager protected constructor(
     private val handler: Handler
     var scoConnectionAttempts: Int = 0
     private var bluetoothState: State
-    private val bluetoothServiceListener: ServiceListener
+    private var bluetoothServiceListener: ServiceListener?
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothHeadset: BluetoothHeadset? = null
     private var bluetoothDevice: BluetoothDevice? = null
@@ -267,7 +267,13 @@ internal open class RTCBluetoothManager protected constructor(
         }
         // Establish a connection to the HEADSET profile (includes both Bluetooth Headset and
         // Hands-Free) proxy object and install a listener.
-        if (!getBluetoothProfileProxy(context, bluetoothServiceListener, BluetoothProfile.HEADSET)) {
+        bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
+        val success = if (bluetoothServiceListener == null) {
+            false
+        } else {
+            getBluetoothProfileProxy(context, bluetoothServiceListener!!, BluetoothProfile.HEADSET)
+        }
+        if (!success) {
             Logger.error(TAG, "BluetoothAdapter.getProfileProxy(HEADSET) failed")
             return
         }
@@ -299,6 +305,7 @@ internal open class RTCBluetoothManager protected constructor(
         unregisterReceiver(bluetoothHeadsetReceiver)
         cancelTimer()
         bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
+        bluetoothServiceListener = null
         bluetoothHeadset = null
         bluetoothAdapter = null
         bluetoothDevice = null
