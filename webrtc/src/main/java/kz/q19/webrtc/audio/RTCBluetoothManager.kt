@@ -126,7 +126,7 @@ internal open class RTCBluetoothManager protected constructor(
          */
         override fun onServiceDisconnected(profile: Int) {
             if (profile != BluetoothProfile.HEADSET) return
-            // if (bluetoothState == State.UNINITIALIZED) return
+             if (bluetoothState == State.UNINITIALIZED) return
             Logger.debug(TAG, "BluetoothServiceListener.onServiceDisconnected: " +
                     "BT state=$bluetoothState")
             stopScoAudio()
@@ -474,16 +474,12 @@ internal open class RTCBluetoothManager protected constructor(
      */
     private fun bluetoothTimeout() {
         ThreadUtils.checkIsOnMainThread()
-        if (bluetoothState == State.UNINITIALIZED || bluetoothHeadset == null) {
-            return
-        }
+        if (bluetoothState == State.UNINITIALIZED || bluetoothHeadset == null) return
         Logger.debug(TAG, "bluetoothTimeout: " +
                 "BT state=" + bluetoothState + ", " +
                 "attempts: $scoConnectionAttempts, " +
                 "SCO is on: $isScoOn")
-        if (bluetoothState != State.SCO_CONNECTING) {
-            return
-        }
+        if (bluetoothState != State.SCO_CONNECTING) return
         // Bluetooth SCO should be connecting; check the latest result.
         var scoConnected = false
         val devices = bluetoothHeadset?.connectedDevices ?: emptyList()
