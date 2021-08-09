@@ -6,8 +6,22 @@
     tools:context=".MainActivity">
 
     <kz.q19.webrtc.core.ui.SurfaceViewRenderer
-        android:id="@+id/surfaceViewRenderer"
+        android:id="@+id/fullSurfaceViewRenderer"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <kz.q19.webrtc.core.ui.SurfaceViewRenderer
+        android:id="@+id/miniSurfaceViewRenderer"
+        android:layout_width="150dp"
+        android:layout_height="200dp"
+        android:layout_gravity="bottom|right"
+        android:layout_margin="20dp" />
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="Switch stream" />
 
 </FrameLayout>

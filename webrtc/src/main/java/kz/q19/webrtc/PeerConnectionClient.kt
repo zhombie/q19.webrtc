@@ -234,15 +234,20 @@ class PeerConnectionClient constructor(
         this.localSurfaceViewRenderer = localSurfaceView
     }
 
-    fun initLocalCameraStream(isMirrored: Boolean = false, isZOrderMediaOverlay: Boolean = true) {
+    fun initLocalCameraStream(
+        isMirrored: Boolean = false,
+        isZOrderMediaOverlay: Boolean = true
+    ): Boolean {
         Logger.debug(TAG, "initLocalCameraStream() -> isMirrored: $isMirrored")
 
         if (localSurfaceViewRenderer == null) {
             Logger.error(TAG, "Local SurfaceViewRenderer is null.")
-            return
+            return false
         }
 
         runOnUiThread {
+            localSurfaceViewRenderer?.release()
+
             localSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             localSurfaceViewRenderer?.setEnableHardwareScaler(true)
             localSurfaceViewRenderer?.setMirror(isMirrored)
@@ -251,6 +256,8 @@ class PeerConnectionClient constructor(
             localVideoScalingType = ScalingType.SCALE_ASPECT_FILL
             localSurfaceViewRenderer?.setScalingType(localVideoScalingType)
         }
+
+        return true
     }
 
     fun setRemoteSurfaceView(remoteSurfaceView: SurfaceViewRenderer?) {
@@ -259,15 +266,20 @@ class PeerConnectionClient constructor(
         this.remoteSurfaceViewRenderer = remoteSurfaceView
     }
 
-    fun initRemoteCameraStream(isMirrored: Boolean = false, isZOrderMediaOverlay: Boolean = false) {
+    fun initRemoteCameraStream(
+        isMirrored: Boolean = false,
+        isZOrderMediaOverlay: Boolean = false
+    ): Boolean {
         Logger.debug(TAG, "initRemoteCameraStream() -> isMirrored: $isMirrored")
 
         if (remoteSurfaceViewRenderer == null) {
             Logger.error(TAG, "Remote SurfaceViewRenderer is null.")
-            return
+            return false
         }
 
         runOnUiThread {
+            remoteSurfaceViewRenderer?.release()
+
             remoteSurfaceViewRenderer?.init(eglBase?.eglBaseContext, null)
             remoteSurfaceViewRenderer?.setEnableHardwareScaler(true)
             remoteSurfaceViewRenderer?.setMirror(isMirrored)
@@ -276,6 +288,8 @@ class PeerConnectionClient constructor(
             remoteVideoScalingType = ScalingType.SCALE_ASPECT_FILL
             remoteSurfaceViewRenderer?.setScalingType(remoteVideoScalingType)
         }
+
+        return true
     }
 
     fun setLocalVideoScalingType(scalingType: kz.q19.webrtc.core.model.ScalingType) {
@@ -735,12 +749,8 @@ class PeerConnectionClient constructor(
 
     fun setLocalVideoSink(target: Target): Target? {
         val set = when (target) {
-            Target.LOCAL -> {
-                localVideoSink?.setTarget(localSurfaceViewRenderer)
-            }
-            Target.REMOTE -> {
-                localVideoSink?.setTarget(remoteSurfaceViewRenderer)
-            }
+            Target.LOCAL -> localVideoSink?.setTarget(localSurfaceViewRenderer)
+            Target.REMOTE -> localVideoSink?.setTarget(remoteSurfaceViewRenderer)
         }
         return if (set == true) target else null
     }
@@ -751,6 +761,32 @@ class PeerConnectionClient constructor(
             Target.REMOTE -> remoteVideoSink?.setTarget(remoteSurfaceViewRenderer)
         }
         return if (set == true) target else null
+    }
+
+    fun setLocalVideoSink(
+        surfaceViewRenderer: SurfaceViewRenderer,
+        isMirrored: Boolean = false,
+        isZOrderMediaOverlay: Boolean = true
+    ): Boolean {
+        localSurfaceViewRenderer = surfaceViewRenderer
+        return if (initLocalCameraStream(isMirrored = isMirrored, isZOrderMediaOverlay = isZOrderMediaOverlay)) {
+            localVideoSink?.setTarget(localSurfaceViewRenderer) == true
+        } else {
+            false
+        }
+    }
+
+    fun setRemoteVideoSink(
+        surfaceViewRenderer: SurfaceViewRenderer,
+        isMirrored: Boolean = false,
+        isZOrderMediaOverlay: Boolean = true
+    ): Boolean {
+        remoteSurfaceViewRenderer = surfaceViewRenderer
+        return if (initRemoteCameraStream(isMirrored = isMirrored, isZOrderMediaOverlay = isZOrderMediaOverlay)) {
+            remoteVideoSink?.setTarget(remoteSurfaceViewRenderer) == true
+        } else {
+            false
+        }
     }
 
     fun getLocalVideoSinkTarget(): Target? = localVideoSinkTarget

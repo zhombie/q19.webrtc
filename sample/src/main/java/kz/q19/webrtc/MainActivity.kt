@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -30,7 +31,8 @@ class MainActivity : AppCompatActivity() {
         private val permissions = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
     }
 
-    private var surfaceViewRenderer: SurfaceViewRenderer? = null
+    private var fullSurfaceViewRenderer: SurfaceViewRenderer? = null
+    private var miniSurfaceViewRenderer: SurfaceViewRenderer? = null
 
     private var peerConnectionClient: PeerConnectionClient? = null
 
@@ -46,7 +48,7 @@ class MainActivity : AppCompatActivity() {
     private val requestPermissions = requestMultiplePermissions(
         onAllGranted = {
             peerConnectionClient = PeerConnectionClient(this)
-            peerConnectionClient?.setLocalSurfaceView(surfaceViewRenderer)
+            peerConnectionClient?.setLocalSurfaceView(fullSurfaceViewRenderer)
             peerConnectionClient?.createPeerConnection(
                 Options(
                     isLocalAudioEnabled = true,
@@ -84,7 +86,31 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        surfaceViewRenderer = findViewById(R.id.surfaceViewRenderer)
+        fullSurfaceViewRenderer = findViewById(R.id.fullSurfaceViewRenderer)
+        miniSurfaceViewRenderer = findViewById(R.id.miniSurfaceViewRenderer)
+
+        var isSet = false
+        findViewById<Button>(R.id.button).setOnClickListener {
+            isSet = if (isSet) {
+                fullSurfaceViewRenderer?.let {
+                    peerConnectionClient?.setLocalVideoSink(
+                        surfaceViewRenderer = it,
+                        isMirrored = true,
+                        isZOrderMediaOverlay = false
+                    )
+                }
+                false
+            } else {
+                miniSurfaceViewRenderer?.let {
+                    peerConnectionClient?.setLocalVideoSink(
+                        surfaceViewRenderer = it,
+                        isMirrored = true,
+                        isZOrderMediaOverlay = false
+                    )
+                }
+                true
+            }
+        }
 
         requestPermissions()
     }
@@ -107,7 +133,8 @@ class MainActivity : AppCompatActivity() {
 
         super.onDestroy()
 
-        surfaceViewRenderer = null
+        fullSurfaceViewRenderer = null
+        miniSurfaceViewRenderer = null
     }
 
     private fun requestPermissions() {
