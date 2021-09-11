@@ -133,8 +133,21 @@ class MainActivity : AppCompatActivity() {
 
         super.onDestroy()
 
-        fullSurfaceViewRenderer = null
-        miniSurfaceViewRenderer = null
+        try {
+            fullSurfaceViewRenderer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            fullSurfaceViewRenderer = null
+        }
+
+        try {
+            miniSurfaceViewRenderer?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            miniSurfaceViewRenderer = null
+        }
     }
 
     private fun requestPermissions() {
