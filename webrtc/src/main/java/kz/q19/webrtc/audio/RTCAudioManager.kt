@@ -90,7 +90,7 @@ class RTCAudioManager private constructor(private val context: Context) {
     private var proximitySensor: RTCProximitySensor?
 
     // Handles all tasks related to Bluetooth headset devices.
-    private var bluetoothManager: RTCBluetoothManager?
+    private var bluetoothManager: RTCBluetoothManager? = null
 
     // Contains a list of available audio devices. A Set collection is used to
     // avoid duplicate elements.
@@ -103,7 +103,7 @@ class RTCAudioManager private constructor(private val context: Context) {
         Logger.debug(TAG, "created")
         ThreadUtils.checkIsOnMainThread()
         audioManagerCompat = AudioManagerCompat.create(context)
-        bluetoothManager = RTCBluetoothManager.create(context, this)
+//        bluetoothManager = RTCBluetoothManager.create(context, this)
         wiredHeadsetReceiver = WiredHeadsetReceiver()
         audioManagerState = AudioManagerState.UNINITIALIZED
 

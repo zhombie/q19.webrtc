@@ -898,14 +898,17 @@ class PeerConnectionClient constructor(
 
             remoteMediaStream = null
 
+            try {
+                peerConnectionFactory?.stopAecDump()
+            } catch (e: IllegalStateException) {
+                e.printStackTrace()
+            }
+
             Logger.debug(TAG, "Closing peer connection factory.")
             peerConnectionFactory?.dispose()
             peerConnectionFactory = null
 
             Logger.debug(TAG, "Closing peer connection done.")
-
-//            PeerConnectionFactory.stopInternalTracingCapture()
-//            PeerConnectionFactory.shutdownInternalTracer()
 
             try {
                 localSurfaceViewRenderer?.release()
@@ -929,6 +932,13 @@ class PeerConnectionClient constructor(
             remoteAudioTrack = null
 
             peerConnection = null
+
+            try {
+                PeerConnectionFactory.stopInternalTracingCapture()
+                PeerConnectionFactory.shutdownInternalTracer()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
