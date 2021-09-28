@@ -893,10 +893,22 @@ class PeerConnectionClient constructor(
             localAudioSource?.dispose()
             localAudioSource = null
 
-    //        localMediaStream?.dispose()
+//            try {
+//                localMediaStream?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                localMediaStream = null
+//            }
             localMediaStream = null
 
-            remoteMediaStream = null
+            try {
+                remoteMediaStream?.dispose()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                remoteMediaStream = null
+            }
 
             try {
                 peerConnectionFactory?.stopAecDump()
@@ -912,24 +924,56 @@ class PeerConnectionClient constructor(
 
             try {
                 localSurfaceViewRenderer?.release()
+            } catch (e: Exception) {
+                Logger.debug(TAG, "Exception on SurfaceViewRenderer release. $e")
+            } finally {
+                localSurfaceViewRenderer = null
+            }
+
+            try {
                 remoteSurfaceViewRenderer?.release()
             } catch (e: Exception) {
                 Logger.debug(TAG, "Exception on SurfaceViewRenderer release. $e")
+            } finally {
+                remoteSurfaceViewRenderer = null
             }
 
             eglBase?.release()
             eglBase = null
 
-//            localVideoTrack?.dispose()
+//            try {
+//                localVideoTrack?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                localVideoTrack = null
+//            }
             localVideoTrack = null
-//            remoteVideoTrack?.dispose()
-            remoteVideoTrack = null
 
-//            localAudioTrack?.dispose()
+            try {
+                remoteVideoTrack?.dispose()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                remoteVideoTrack = null
+            }
+
+//            try {
+//                localAudioTrack?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                localAudioTrack = null
+//            }
             localAudioTrack = null
 
-//            remoteAudioTrack?.dispose()
-            remoteAudioTrack = null
+            try {
+                remoteAudioTrack?.dispose()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                remoteAudioTrack = null
+            }
 
             peerConnection = null
 
