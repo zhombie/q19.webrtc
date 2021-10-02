@@ -977,12 +977,12 @@ class PeerConnectionClient constructor(
 
             peerConnection = null
 
-            try {
-                PeerConnectionFactory.stopInternalTracingCapture()
-                PeerConnectionFactory.shutdownInternalTracer()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+//            try {
+//                PeerConnectionFactory.stopInternalTracingCapture()
+//                PeerConnectionFactory.shutdownInternalTracer()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            }
         }
     }
 
