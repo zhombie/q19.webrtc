@@ -902,13 +902,14 @@ class PeerConnectionClient constructor(
 //            }
             localMediaStream = null
 
-            try {
-                remoteMediaStream?.dispose()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                remoteMediaStream = null
-            }
+//            try {
+//                remoteMediaStream?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                remoteMediaStream = null
+//            }
+            remoteMediaStream = null
 
             try {
                 peerConnectionFactory?.stopAecDump()
@@ -950,13 +951,14 @@ class PeerConnectionClient constructor(
 //            }
             localVideoTrack = null
 
-            try {
-                remoteVideoTrack?.dispose()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                remoteVideoTrack = null
-            }
+//            try {
+//                remoteVideoTrack?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                remoteVideoTrack = null
+//            }
+            remoteVideoTrack = null
 
 //            try {
 //                localAudioTrack?.dispose()
@@ -967,13 +969,14 @@ class PeerConnectionClient constructor(
 //            }
             localAudioTrack = null
 
-            try {
-                remoteAudioTrack?.dispose()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                remoteAudioTrack = null
-            }
+//            try {
+//                remoteAudioTrack?.dispose()
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            } finally {
+//                remoteAudioTrack = null
+//            }
+            remoteAudioTrack = null
 
             peerConnection = null
 

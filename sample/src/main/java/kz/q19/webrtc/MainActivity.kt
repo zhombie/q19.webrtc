@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
 
     private val requestPermissions = requestMultiplePermissions(
         onAllGranted = {
-            peerConnectionClient = PeerConnectionClient(this)
+            peerConnectionClient = PeerConnectionClient(applicationContext)
             peerConnectionClient?.setLocalSurfaceView(fullSurfaceViewRenderer)
             peerConnectionClient?.createPeerConnection(
                 Options(
