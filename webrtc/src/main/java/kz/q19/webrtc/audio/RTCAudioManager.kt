@@ -11,21 +11,22 @@ import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.Logger.logDeviceInfo
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
 import org.webrtc.ThreadUtils
+import java.lang.ref.WeakReference
 import java.util.*
 
 /**
  * [RTCAudioManager] manages all audio related parts.
  */
-class RTCAudioManager private constructor(private val context: Context) {
+class RTCAudioManager private constructor(
+    private val contextReference: WeakReference<Context>
+) {
 
     companion object {
         private val TAG = RTCAudioManager::class.java.simpleName
 
-        /**
-         * Construction
-         */
-        fun create(context: Context): RTCAudioManager {
-            return RTCAudioManager(context)
+        fun create(context: Context?): RTCAudioManager? {
+            if (context == null) return null
+            return RTCAudioManager(WeakReference(context))
         }
     }
 
@@ -61,7 +62,10 @@ class RTCAudioManager private constructor(private val context: Context) {
         )
     }
 
-    private val audioManagerCompat: AudioManagerCompat
+    private val context: Context?
+        get() = contextReference.get()
+
+    private val audioManagerCompat: AudioManagerCompat?
     private var audioManagerEvents: AudioManagerEvents? = null
     private var audioManagerState: AudioManagerState
 
@@ -168,7 +172,7 @@ class RTCAudioManager private constructor(private val context: Context) {
                     "m=" + (if (microphone == HAS_MIC) "mic" else "no mic") + ", " +
                     "n=$name, " +
                     "sb=$isInitialStickyBroadcast")
-            audioManagerCompat.savedWiredHeadset = state == STATE_PLUGGED
+            audioManagerCompat?.savedWiredHeadset = state == STATE_PLUGGED
             updateAudioDeviceState()
         }
     }
@@ -187,15 +191,15 @@ class RTCAudioManager private constructor(private val context: Context) {
         audioManagerState = AudioManagerState.RUNNING
 
         // Store current audio state so we can restore it when stop() is called.
-        audioManagerCompat.storeState()
+        audioManagerCompat?.storeState()
 
         // Request audio playout focus (without ducking) and install listener for changes in focus.
-        audioManagerCompat.requestCallAudioFocus()
+        audioManagerCompat?.requestCallAudioFocus()
 
         // Start by setting MODE_IN_COMMUNICATION as default audio mode. It is
         // required to be in this mode when playout and/or recording starts for
         // best possible VoIP performance.
-        audioManagerCompat.setMode(AudioManager.MODE_IN_COMMUNICATION)
+        audioManagerCompat?.setMode(AudioManager.MODE_IN_COMMUNICATION)
 
         // Always disable microphone mute during a WebRTC call.
         setMicrophoneMute(false)
@@ -216,8 +220,10 @@ class RTCAudioManager private constructor(private val context: Context) {
 
         // Register receiver for broadcast intents related to adding/removing a
         // wired headset.
-        val action = audioManagerCompat.getWiredHeadsetPlugBroadcastAction()
-        registerReceiver(wiredHeadsetReceiver, IntentFilter(action))
+        val action = audioManagerCompat?.getWiredHeadsetPlugBroadcastAction()
+        if (action != null) {
+            registerReceiver(wiredHeadsetReceiver, IntentFilter(action))
+        }
         Logger.debug(TAG, "AudioManager started")
     }
 
@@ -236,10 +242,10 @@ class RTCAudioManager private constructor(private val context: Context) {
         bluetoothManager = null
 
         // Restore previously stored audio states.
-        audioManagerCompat.restoreState()
+        audioManagerCompat?.restoreState()
 
         // Abandon audio focus. Gives the previous focus owner, if any, focus.
-        audioManagerCompat.abandonCallAudioFocus()
+        audioManagerCompat?.abandonCallAudioFocus()
         Logger.debug(TAG, "Abandoned audio focus for VOICE_CALL streams")
 
         proximitySensor?.stop()
@@ -328,29 +334,29 @@ class RTCAudioManager private constructor(private val context: Context) {
      * Helper method for receiver registration.
      */
     private fun registerReceiver(receiver: BroadcastReceiver, filter: IntentFilter): Intent? =
-        context.registerReceiver(receiver, filter)
+        context?.registerReceiver(receiver, filter)
 
     /**
      * Helper method for unregistration of an existing receiver.
      */
     private fun unregisterReceiver(receiver: BroadcastReceiver) =
-        context.unregisterReceiver(receiver)
+        context?.unregisterReceiver(receiver)
 
     /**
      * Sets the speaker phone mode.
      */
-    fun setSpeakerphoneOn(on: Boolean): Boolean = audioManagerCompat.setSpeakerphoneOn(on)
+    fun setSpeakerphoneOn(on: Boolean): Boolean = audioManagerCompat?.setSpeakerphoneOn(on) == true
 
     /**
      * Sets the microphone mute state.
      */
-    fun setMicrophoneMute(on: Boolean): Boolean = audioManagerCompat.setMicrophoneMute(on)
+    fun setMicrophoneMute(on: Boolean): Boolean = audioManagerCompat?.setMicrophoneMute(on) == true
 
     /**
      * Gets the current earpiece state.
      */
     private fun hasEarpiece(): Boolean =
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+        context?.packageManager?.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) == true
 
     /**
      * Updates list of possible audio devices and make new device selection.
@@ -358,7 +364,7 @@ class RTCAudioManager private constructor(private val context: Context) {
     fun updateAudioDeviceState() {
         ThreadUtils.checkIsOnMainThread()
         Logger.debug(TAG, "--- updateAudioDeviceState: " +
-                "wired headset=${audioManagerCompat.savedWiredHeadset}, " +
+                "wired headset=${audioManagerCompat?.savedWiredHeadset}, " +
                 "BT state=${bluetoothManager?.state}")
         Logger.debug(TAG, "Device status: " +
                 "available=$audioDevices, " +
@@ -381,7 +387,7 @@ class RTCAudioManager private constructor(private val context: Context) {
             bluetoothManager?.state == RTCBluetoothManager.State.HEADSET_AVAILABLE) {
             newAudioDevices.add(AudioDevice.BLUETOOTH)
         }
-        if (audioManagerCompat.savedWiredHeadset) {
+        if (audioManagerCompat?.savedWiredHeadset == true) {
             // If a wired headset is connected, then it is the only possible option.
             newAudioDevices.add(AudioDevice.WIRED_HEADSET)
         } else {
@@ -402,12 +408,14 @@ class RTCAudioManager private constructor(private val context: Context) {
             // If BT is not available, it can't be the user selection.
             userSelectedAudioDevice = AudioDevice.NONE
         }
-        if (audioManagerCompat.savedWiredHeadset && userSelectedAudioDevice == AudioDevice.SPEAKER_PHONE) {
+        if (audioManagerCompat?.savedWiredHeadset == true &&
+            userSelectedAudioDevice == AudioDevice.SPEAKER_PHONE) {
             // If user selected speaker phone, but then plugged wired headset then make
             // wired headset as user selected device.
             userSelectedAudioDevice = AudioDevice.WIRED_HEADSET
         }
-        if (!audioManagerCompat.savedWiredHeadset && userSelectedAudioDevice == AudioDevice.WIRED_HEADSET) {
+        if (audioManagerCompat?.savedWiredHeadset == false &&
+            userSelectedAudioDevice == AudioDevice.WIRED_HEADSET) {
             // If user selected wired headset, but then unplugged wired headset then make
             // speaker phone as user selected device.
             userSelectedAudioDevice = AudioDevice.SPEAKER_PHONE
@@ -458,7 +466,7 @@ class RTCAudioManager private constructor(private val context: Context) {
                 // an active SCO channel must also be up and running.
                 AudioDevice.BLUETOOTH
             }
-            audioManagerCompat.savedWiredHeadset -> {
+            audioManagerCompat?.savedWiredHeadset == true -> {
                 // If a wired headset is connected, but Bluetooth is not, then wired headset is used as
                 // audio device.
                 AudioDevice.WIRED_HEADSET

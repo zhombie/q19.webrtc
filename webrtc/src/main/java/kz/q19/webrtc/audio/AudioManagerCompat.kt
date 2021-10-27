@@ -7,15 +7,19 @@ import android.media.AudioManager.OnAudioFocusChangeListener
 import android.os.Build
 import androidx.annotation.RequiresApi
 import kz.q19.webrtc.utils.Logger
+import java.lang.ref.WeakReference
 
-internal abstract class AudioManagerCompat private constructor(context: Context) {
+internal abstract class AudioManagerCompat private constructor(
+    private val contextReference: WeakReference<Context>
+) {
 
     companion object {
         private val TAG: String = AudioManagerCompat::class.java.simpleName
 
         private const val DEFAULT_AUDIOFOCUS_GAIN = AudioManager.AUDIOFOCUS_GAIN
 
-        fun create(context: Context): AudioManagerCompat {
+        fun create(context: Context?): AudioManagerCompat? {
+            if (context == null) return null
             return when {
                 Build.VERSION.SDK_INT >= 26 -> Api26AudioManagerCompat(context)
                 Build.VERSION.SDK_INT >= 21 -> Api21AudioManagerCompat(context)
@@ -24,7 +28,13 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
         }
     }
 
-    protected val audioManager: AudioManager = requireNotNull(context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager?)
+    constructor(context: Context) : this(WeakReference(context))
+
+    private val context: Context?
+        get() = contextReference.get()
+
+    protected val audioManager: AudioManager? =
+        context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager?
 
     // Callback method for changes in audio focus.
     //
@@ -71,24 +81,27 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
 
     // Store current audio state so we can restore it when stop() is called.
     fun storeState() {
-        savedAudioMode = audioManager.mode
-        savedIsSpeakerPhoneOn = audioManager.isSpeakerphoneOn
-        savedIsMicrophoneMute = audioManager.isMicrophoneMute
-        savedWiredHeadset = isWiredHeadsetOn()
+        audioManager?.let {
+            savedAudioMode = audioManager.mode
+            savedIsSpeakerPhoneOn = audioManager.isSpeakerphoneOn
+            savedIsMicrophoneMute = audioManager.isMicrophoneMute
+            savedWiredHeadset = isWiredHeadsetOn()
+        }
     }
 
     // Restore previously stored audio states.
     fun restoreState() {
         setSpeakerphoneOn(savedIsSpeakerPhoneOn)
         setMicrophoneMute(savedIsMicrophoneMute)
-        audioManager.mode = savedAudioMode
+        audioManager?.mode = savedAudioMode
     }
 
     fun setMode(mode: Int) {
-        audioManager.mode = mode
+        audioManager?.mode = mode
     }
 
     fun setSpeakerphoneOn(on: Boolean): Boolean {
+        if (audioManager == null) return false
         val isOn = audioManager.isSpeakerphoneOn
         if (isOn == on) return false
         audioManager.isSpeakerphoneOn = on
@@ -96,6 +109,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
     }
 
     fun setMicrophoneMute(on: Boolean): Boolean {
+        if (audioManager == null) return false
         val isMute = audioManager.isMicrophoneMute
         if (isMute == on) return false
         audioManager.isMicrophoneMute = on
@@ -127,6 +141,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
         }
 
         override fun isWiredHeadsetOn(): Boolean {
+            if (audioManager == null) return false
             val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS or AudioManager.GET_DEVICES_INPUTS)
             for (device in devices) {
                 val type = device.type
@@ -157,7 +172,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
                 .setAudioAttributes(AUDIO_ATTRIBUTES)
                 .setOnAudioFocusChangeListener(onAudioFocusChangeListener)
                 .build()
-            val result = audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
+            val result = audioFocusRequest?.let { audioManager?.requestAudioFocus(it) }
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 Logger.warn(TAG, "Audio focus not granted. Result code: $result")
             }
@@ -168,7 +183,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
                 Logger.warn(TAG, "Don't currently have audio focus. Ignoring...")
                 return
             }
-            val result = audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            val result = audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 Logger.warn(TAG, "Audio focus abandon failed. Result code: $result")
             }
@@ -212,7 +227,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
         }
 
         override fun isWiredHeadsetOn(): Boolean {
-            return audioManager.isWiredHeadsetOn
+            return audioManager?.isWiredHeadsetOn == true
         }
 
         override fun createSoundPool(): SoundPool {
@@ -220,7 +235,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
         }
 
         override fun requestCallAudioFocus() {
-            val result = audioManager.requestAudioFocus(
+            val result = audioManager?.requestAudioFocus(
                 onAudioFocusChangeListener,
                 AudioManager.STREAM_VOICE_CALL,
                 DEFAULT_AUDIOFOCUS_GAIN
@@ -231,7 +246,7 @@ internal abstract class AudioManagerCompat private constructor(context: Context)
         }
 
         override fun abandonCallAudioFocus() {
-            val result = audioManager.abandonAudioFocus(onAudioFocusChangeListener)
+            val result = audioManager?.abandonAudioFocus(onAudioFocusChangeListener)
             if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
                 Logger.warn(TAG, "Audio focus abandon failed. Result code: $result")
             }

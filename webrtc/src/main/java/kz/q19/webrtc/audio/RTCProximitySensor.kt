@@ -11,6 +11,7 @@ import kz.q19.webrtc.utils.AssertUtils.assertIsTrue
 import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
 import org.webrtc.ThreadUtils.ThreadChecker
+import java.lang.ref.WeakReference
 
 /**
  * [RTCProximitySensor] manages functions related to the proximity sensor.
@@ -21,7 +22,7 @@ import org.webrtc.ThreadUtils.ThreadChecker
  * Anything less than the threshold value and the sensor  returns "NEAR".
  */
 internal class RTCProximitySensor private constructor(
-    context: Context,
+    private val contextReference: WeakReference<Context>,
     sensorStateListener: Runnable
 ) : SensorEventListener {
 
@@ -31,10 +32,14 @@ internal class RTCProximitySensor private constructor(
         /**
          * Construction
          */
-        fun create(context: Context, sensorStateListener: Runnable): RTCProximitySensor {
-            return RTCProximitySensor(context, sensorStateListener)
+        fun create(context: Context?, sensorStateListener: Runnable): RTCProximitySensor? {
+            if (context == null) return null
+            return RTCProximitySensor(WeakReference(context), sensorStateListener)
         }
     }
+
+    private val context: Context?
+        get() = contextReference.get()
 
     // This class should be created, started and stopped on one thread
     // (e.g. the main thread). We use |nonThreadSafe| to ensure that this is
@@ -49,7 +54,7 @@ internal class RTCProximitySensor private constructor(
     init {
         Logger.debug(TAG, "RTCProximitySensor: $threadInfo")
         onSensorStateListener = sensorStateListener
-        sensorManager = context.sensorManager
+        sensorManager = context?.sensorManager
     }
 
     /**

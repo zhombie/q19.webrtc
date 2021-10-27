@@ -2,6 +2,7 @@ package kz.q19.webrtc
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.audio.RTCAudioManager
@@ -15,12 +16,13 @@ import org.webrtc.*
 import org.webrtc.RendererCommon.ScalingType
 import org.webrtc.audio.AudioDeviceModule
 import org.webrtc.audio.JavaAudioDeviceModule
+import java.lang.ref.WeakReference
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class PeerConnectionClient constructor(
-    private val context: Context,
+    private val contextReference: WeakReference<Context>,
 
     var options: Options = Options(),
 
@@ -30,6 +32,34 @@ class PeerConnectionClient constructor(
 
     companion object {
         private val TAG = PeerConnectionClient::class.java.simpleName
+    }
+
+    constructor(
+        context: Context,
+        options: Options = Options(),
+        localSurfaceViewRenderer: SurfaceViewRenderer? = null,
+        remoteSurfaceViewRenderer: SurfaceViewRenderer? = null
+    ) : this(
+        contextReference = WeakReference(context),
+        options = options,
+        localSurfaceViewRenderer = localSurfaceViewRenderer,
+        remoteSurfaceViewRenderer = remoteSurfaceViewRenderer
+    )
+
+    private val context: Context?
+        get() = contextReference.get()
+
+    private val uiThread: Handler? by lazy(LazyThreadSafetyMode.NONE) {
+        val context = context
+        if (context == null) {
+            null
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                Handler.createAsync(context.mainLooper)
+            } else {
+                Handler(context.mainLooper)
+            }
+        }
     }
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -165,8 +195,10 @@ class PeerConnectionClient constructor(
         }
 
         val future = executor.submit(Callable {
+            if (context == null) return@Callable null
+
             val initializationOptions = PeerConnectionFactory.InitializationOptions
-                .builder(context)
+                .builder(context?.applicationContext)
                 .setEnableInternalTracer(true)
                 .createInitializationOptions()
 
@@ -558,13 +590,6 @@ class PeerConnectionClient constructor(
         rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.ALL
 
         val peerConnectionObserver = object : PeerConnection.Observer {
-            override fun onAddTrack(
-                rtpReceiver: RtpReceiver?,
-                mediaStreams: Array<out MediaStream>?
-            ) {
-                Logger.debug(TAG, "onAddTrack() -> $rtpReceiver, ${mediaStreams.contentToString()}")
-            }
-
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
                 Logger.debug(TAG, "onSignalingChange() -> $signalingState")
             }
@@ -628,6 +653,17 @@ class PeerConnectionClient constructor(
                 executor.execute {
                     listener?.onRenegotiationNeeded()
                 }
+            }
+
+            override fun onAddTrack(
+                rtpReceiver: RtpReceiver?,
+                mediaStreams: Array<out MediaStream>?
+            ) {
+                Logger.debug(TAG, "onAddTrack() -> $rtpReceiver, ${mediaStreams.contentToString()}")
+            }
+
+            override fun onRemoveTrack(rtpReceiver: RtpReceiver?) {
+                Logger.debug(TAG, "onRemoveTrack() -> $rtpReceiver")
             }
         }
         return factory.createPeerConnection(rtcConfig, peerConnectionObserver)
@@ -911,11 +947,11 @@ class PeerConnectionClient constructor(
 //            }
             remoteMediaStream = null
 
-            try {
-                peerConnectionFactory?.stopAecDump()
-            } catch (e: IllegalStateException) {
-                e.printStackTrace()
-            }
+//            try {
+//                peerConnectionFactory?.stopAecDump()
+//            } catch (e: IllegalStateException) {
+//                e.printStackTrace()
+//            }
 
             Logger.debug(TAG, "Closing peer connection factory.")
             peerConnectionFactory?.dispose()
@@ -1114,10 +1150,11 @@ class PeerConnectionClient constructor(
 
     private fun runOnUiThread(action: Runnable) {
         try {
+            val context = context
             if (context is Activity) {
                 context.runOnUiThread(action)
             } else {
-                Handler(context.mainLooper).post(action)
+                uiThread?.post(action)
             }
         } catch (e: Exception) {
             e.printStackTrace()
