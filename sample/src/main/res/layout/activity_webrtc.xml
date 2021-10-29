@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".WebRTCActivity">
+
+    <kz.q19.webrtc.core.ui.SurfaceViewRenderer
+        android:id="@+id/fullSurfaceViewRenderer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <kz.q19.webrtc.core.ui.SurfaceViewRenderer
+        android:id="@+id/miniSurfaceViewRenderer"
+        android:layout_width="150dp"
+        android:layout_height="200dp"
+        android:layout_gravity="bottom|right"
+        android:layout_margin="20dp" />
+
+    <Button
+        android:id="@+id/switchButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="Switch stream" />
+
+    <Button
+        android:id="@+id/shutdownButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:text="Shutdown" />
+
+</FrameLayout>

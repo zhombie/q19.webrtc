@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.Handler
+import android.os.Looper
 import kz.q19.domain.model.webrtc.IceConnectionState
 import kz.q19.webrtc.audio.RTCAudioManager
 import kz.q19.webrtc.core.constraints.*
@@ -49,16 +50,11 @@ class PeerConnectionClient constructor(
     private val context: Context?
         get() = contextReference.get()
 
-    private val uiThread: Handler? by lazy(LazyThreadSafetyMode.NONE) {
-        val context = context
-        if (context == null) {
-            null
+    private val uiThread: Handler by lazy(LazyThreadSafetyMode.NONE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            Handler.createAsync(Looper.getMainLooper())
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                Handler.createAsync(context.mainLooper)
-            } else {
-                Handler(context.mainLooper)
-            }
+            Handler(Looper.getMainLooper())
         }
     }
 
@@ -887,7 +883,7 @@ class PeerConnectionClient constructor(
             audioManager?.stop()
             audioManager = null
 
-            Logger.debug(TAG, "Stopping capture.")
+            Logger.debug(TAG, "Stopping capture")
             try {
                 localVideoCapturer?.stopCapture()
             } catch (e: Exception) {
@@ -911,10 +907,11 @@ class PeerConnectionClient constructor(
         localVideoSender = null
 
         executor.execute {
-            peerConnection?.dispose()
+            localVideoSink?.setTarget(null)
+            localVideoSink = null
 
-            surfaceTextureHelper?.dispose()
-            surfaceTextureHelper = null
+            remoteVideoSink?.setTarget(null)
+            remoteVideoSink = null
 
             try {
                 localVideoCapturer?.dispose()
@@ -929,22 +926,10 @@ class PeerConnectionClient constructor(
             localAudioSource?.dispose()
             localAudioSource = null
 
-//            try {
-//                localMediaStream?.dispose()
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            } finally {
-//                localMediaStream = null
-//            }
-            localMediaStream = null
+            surfaceTextureHelper?.dispose()
+            surfaceTextureHelper = null
 
-//            try {
-//                remoteMediaStream?.dispose()
-//            } catch (e: Exception) {
-//                e.printStackTrace()
-//            } finally {
-//                remoteMediaStream = null
-//            }
+            localMediaStream = null
             remoteMediaStream = null
 
 //            try {
@@ -952,12 +937,6 @@ class PeerConnectionClient constructor(
 //            } catch (e: IllegalStateException) {
 //                e.printStackTrace()
 //            }
-
-            Logger.debug(TAG, "Closing peer connection factory.")
-            peerConnectionFactory?.dispose()
-            peerConnectionFactory = null
-
-            Logger.debug(TAG, "Closing peer connection done.")
 
             try {
                 localSurfaceViewRenderer?.release()
@@ -1014,7 +993,15 @@ class PeerConnectionClient constructor(
 //            }
             remoteAudioTrack = null
 
+            Logger.debug(TAG, "Closing peer connection")
+            peerConnection?.dispose()
             peerConnection = null
+            Logger.debug(TAG, "Closing peer connection done")
+
+            Logger.debug(TAG, "Closing peer connection factory")
+            peerConnectionFactory?.dispose()
+            peerConnectionFactory = null
+            Logger.debug(TAG, "Closing peer connection factory done")
 
 //            try {
 //                PeerConnectionFactory.stopInternalTracingCapture()
@@ -1154,7 +1141,7 @@ class PeerConnectionClient constructor(
             if (context is Activity) {
                 context.runOnUiThread(action)
             } else {
-                uiThread?.post(action)
+                uiThread.post(action)
             }
         } catch (e: Exception) {
             e.printStackTrace()
