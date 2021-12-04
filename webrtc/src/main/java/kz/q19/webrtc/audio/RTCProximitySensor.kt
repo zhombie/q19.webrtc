@@ -5,9 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.os.Build
-import kz.q19.utils.android.sensorManager
-import kz.q19.webrtc.utils.AssertUtils.assertIsTrue
+import androidx.core.content.ContextCompat
 import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
 import org.webrtc.ThreadUtils.ThreadChecker
@@ -54,7 +52,7 @@ internal class RTCProximitySensor private constructor(
     init {
         Logger.debug(TAG, "RTCProximitySensor: $threadInfo")
         onSensorStateListener = sensorStateListener
-        sensorManager = context?.sensorManager
+        sensorManager = context?.let { ContextCompat.getSystemService(it, SensorManager::class.java) }
     }
 
     /**
@@ -92,7 +90,7 @@ internal class RTCProximitySensor private constructor(
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
         threadChecker.checkIsOnValidThread()
-        assertIsTrue(sensor.type == Sensor.TYPE_PROXIMITY)
+        require(sensor.type == Sensor.TYPE_PROXIMITY)
         if (accuracy == SensorManager.SENSOR_STATUS_UNRELIABLE) {
             Logger.error(TAG, "The values returned by this sensor cannot be trusted")
         }
@@ -100,7 +98,7 @@ internal class RTCProximitySensor private constructor(
 
     override fun onSensorChanged(event: SensorEvent) {
         threadChecker.checkIsOnValidThread()
-        assertIsTrue(event.sensor.type == Sensor.TYPE_PROXIMITY)
+        require(event.sensor.type == Sensor.TYPE_PROXIMITY)
         // As a best practice; do as little as possible within this method and
         // avoid blocking.
         val distanceInCentimeters = event.values[0]
@@ -140,20 +138,17 @@ internal class RTCProximitySensor private constructor(
      */
     private fun logProximitySensorInfo() {
         if (proximitySensor == null) return
-        val info = StringBuilder("Proximity sensor: ")
-        info.append("name=").append(proximitySensor?.name)
-        info.append(", vendor: ").append(proximitySensor?.vendor)
-        info.append(", power: ").append(proximitySensor?.power)
-        info.append(", resolution: ").append(proximitySensor?.resolution)
-        info.append(", max range: ").append(proximitySensor?.maximumRange)
-        info.append(", min delay: ").append(proximitySensor?.minDelay)
-        // Added in API level 20.
-        info.append(", type: ").append(proximitySensor?.stringType)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // Added in API level 21.
-            info.append(", max delay: ").append(proximitySensor?.maxDelay)
-            info.append(", reporting mode: ").append(proximitySensor?.reportingMode)
-            info.append(", isWakeUpSensor: ").append(proximitySensor?.isWakeUpSensor)
+        val info = StringBuilder("Proximity sensor: ").apply {
+            append("name=").append(proximitySensor?.name)
+            append(", vendor: ").append(proximitySensor?.vendor)
+            append(", power: ").append(proximitySensor?.power)
+            append(", resolution: ").append(proximitySensor?.resolution)
+            append(", max range: ").append(proximitySensor?.maximumRange)
+            append(", min delay: ").append(proximitySensor?.minDelay)
+            append(", type: ").append(proximitySensor?.stringType)
+            append(", max delay: ").append(proximitySensor?.maxDelay)
+            append(", reporting mode: ").append(proximitySensor?.reportingMode)
+            append(", isWakeUpSensor: ").append(proximitySensor?.isWakeUpSensor)
         }
         Logger.debug(TAG, info.toString())
     }

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
-import kz.q19.webrtc.utils.AssertUtils.assertIsTrue
 import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.Logger.logDeviceInfo
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
@@ -260,7 +259,8 @@ class RTCAudioManager private constructor(
      */
     private fun setAudioDeviceInternal(device: AudioDevice) {
         Logger.debug(TAG, "setAudioDeviceInternal(device=$device)")
-        assertIsTrue(audioDevices.contains(device))
+
+        require(audioDevices.contains(device))
 
         val on = when (device) {
             AudioDevice.SPEAKER_PHONE ->

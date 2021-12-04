@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.5.31'
+    ext.kotlin_version = '1.6.0'
 
     repositories {
         google()
@@ -7,10 +7,22 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.2.2'
+        classpath 'com.android.tools.build:gradle:7.0.3'
 
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
+}
+
+/**
+ * Shared configs across subprojects
+ */
+ext.projectArtifactId = { project ->
+    switch (project.name) {
+        // Single module
+        case 'webrtc':
+            return project.name
+    }
+    return null
 }
 
 allprojects {
@@ -19,7 +31,106 @@ allprojects {
         mavenCentral()
         maven { url 'https://jitpack.io' }
     }
+
+    group = 'com.github.zhombie'
+    project.ext.version_code = 2
+    version = '1.5.2'
+    project.ext.artifactId = rootProject.ext.projectArtifactId(project)
+
+    if (project.ext.artifactId != null) {
+        println "ArtifactId [${project.ext.artifactId}] is set"
+    }
 }
+
+static def getSampleModuleName(project) {
+    if (project.name == "sample") {
+        println "Project [${project.name}] is sample module"
+        return project.name
+    }
+    return null
+}
+
+/**
+ * Publishing and signing info
+ */
+subprojects { project ->
+    println "Subproject: ${project.name}"
+
+    if (getSampleModuleName(project) != null) return
+
+    apply plugin: 'com.android.library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'kotlin-android'
+
+    android {
+        compileSdkVersion 31
+        buildToolsVersion "31.0.0"
+
+        defaultConfig {
+            minSdkVersion 23
+            targetSdkVersion 31
+
+            versionCode project.ext.version_code
+            versionName project.version
+        }
+
+        buildTypes {
+            release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
+        }
+
+        buildFeatures {
+            buildConfig false
+        }
+
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_11
+            targetCompatibility JavaVersion.VERSION_11
+        }
+
+        kotlinOptions {
+            jvmTarget = JavaVersion.VERSION_11.toString()
+        }
+    }
+
+    publishing {
+        publications {
+            aar(MavenPublication) {
+                groupId project.group
+                artifactId project.ext.artifactId
+                version project.version
+
+                pom {
+                    name = project.name
+                    url = "https://github.com/zhombie/q19.webrtc"
+
+                    developers {
+                        developer {
+                            name = 'zhombie'
+                        }
+                    }
+                }
+
+                pom.withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+                    project.configurations.api.allDependencies.each { dependency ->
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', dependency.group)
+                        dependencyNode.appendNode('artifactId', dependency.name)
+                        dependencyNode.appendNode('version', dependency.version)
+                    }
+                }
+
+                afterEvaluate {
+                    artifact "$buildDir/outputs/aar/$project.name-release.aar"
+                }
+            }
+        }
+    }
+}
+
 
 task clean(type: Delete) {
     delete rootProject.buildDir

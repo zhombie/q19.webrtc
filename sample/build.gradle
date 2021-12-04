@@ -5,17 +5,17 @@ plugins {
 }
 
 android {
-    compileSdkVersion 30
-    buildToolsVersion '30.0.3'
+    compileSdkVersion 31
+    buildToolsVersion '31.0.0'
 
     defaultConfig {
         applicationId 'kz.q19.webrtc'
 
-        minSdkVersion 21
-        targetSdkVersion 30
+        minSdkVersion 23
+        targetSdkVersion 31
 
-        versionCode 1
-        versionName '1.0'
+        versionCode project.ext.version_code
+        versionName project.version
     }
 
     buildTypes {
@@ -27,30 +27,27 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-
     // Kotlin
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.5.0'
-    implementation 'com.github.zhombie:q19.utils:1.1.7'
+    implementation 'com.github.zhombie:q19.domain:1.5.3'
 
     // AppCompat
-    implementation 'androidx.appcompat:appcompat:1.4.0-alpha03'
+    implementation 'androidx.appcompat:appcompat:1.4.0'
 
-    // Jetpack Core
-    implementation 'androidx.core:core-ktx:1.6.0'
+    // Core
+    implementation 'androidx.core:core-ktx:1.7.0'
 
     // LeakCanary
     // debugImplementation because LeakCanary should only run in debug builds.

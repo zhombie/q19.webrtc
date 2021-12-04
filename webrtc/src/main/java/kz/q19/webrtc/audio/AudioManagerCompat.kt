@@ -218,6 +218,7 @@ internal abstract class AudioManagerCompat private constructor(
 
     }
 
+    @Suppress("DEPRECATION")
     private open class Api19AudioManagerCompat constructor(
         context: Context
     ) : AudioManagerCompat(context) {

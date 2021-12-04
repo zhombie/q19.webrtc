@@ -18,7 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import android.util.Log
-import kz.q19.utils.android.audioManager
+import androidx.core.content.ContextCompat
 import kz.q19.webrtc.utils.Logger
 import kz.q19.webrtc.utils.ThreadUtils.threadInfo
 import org.webrtc.ThreadUtils
@@ -62,7 +62,7 @@ internal open class RTCBluetoothManager protected constructor(
     init {
         Log.d(TAG, "created")
         ThreadUtils.checkIsOnMainThread()
-        audioManager = context.audioManager
+        audioManager = ContextCompat.getSystemService(context, AudioManager::class.java)
         bluetoothState = State.UNINITIALIZED
         bluetoothServiceListener = BluetoothServiceListener()
         bluetoothHeadsetReceiver = BluetoothHeadsetBroadcastReceiver()

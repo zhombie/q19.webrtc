@@ -1,4 +1,4 @@
-package kz.q19.webrtc
+package kz.q19.sample.webrtc
 
 import android.os.Bundle
 import android.widget.Button

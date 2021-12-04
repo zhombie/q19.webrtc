@@ -1,4 +1,4 @@
-package kz.q19.webrtc
+package kz.q19.sample.webrtc
 
 import android.Manifest
 import android.app.Activity
@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import kz.q19.domain.model.webrtc.IceServer
+import kz.q19.webrtc.Options
+import kz.q19.webrtc.PeerConnectionClient
 import kz.q19.webrtc.core.ui.SurfaceViewRenderer
 
 class WebRTCActivity : AppCompatActivity() {
@@ -29,7 +31,10 @@ class WebRTCActivity : AppCompatActivity() {
             )
         }
 
-        private val permissions = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        private val permissions = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
 
         fun newIntent(context: Context): Intent {
             return Intent(context, WebRTCActivity::class.java)
