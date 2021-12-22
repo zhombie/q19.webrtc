@@ -41,7 +41,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.5.5'
+    implementation 'com.github.zhombie:q19.domain:1.5.6'
 
     // AppCompat
     implementation 'androidx.appcompat:appcompat:1.4.0'
