@@ -105,7 +105,7 @@ class RTCAudioManager private constructor(
     init {
         Logger.debug(TAG, "created")
         ThreadUtils.checkIsOnMainThread()
-        audioManagerCompat = AudioManagerCompat.create(context)
+        audioManagerCompat = context?.let { AudioManagerCompat.create(it) }
 //        bluetoothManager = RTCBluetoothManager.create(context, this)
         wiredHeadsetReceiver = WiredHeadsetReceiver()
         audioManagerState = AudioManagerState.UNINITIALIZED

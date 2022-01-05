@@ -18,14 +18,15 @@ internal abstract class AudioManagerCompat private constructor(
 
         private const val DEFAULT_AUDIOFOCUS_GAIN = AudioManager.AUDIOFOCUS_GAIN
 
-        fun create(context: Context?): AudioManagerCompat? {
-            if (context == null) return null
-            return when {
-                Build.VERSION.SDK_INT >= 26 -> Api26AudioManagerCompat(context)
-                Build.VERSION.SDK_INT >= 21 -> Api21AudioManagerCompat(context)
-                else -> Api19AudioManagerCompat(context)
+        fun create(context: Context): AudioManagerCompat =
+            when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
+                    Api26AudioManagerCompat(context)
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ->
+                    Api21AudioManagerCompat(context)
+                else ->
+                    Api19AudioManagerCompat(context)
             }
-        }
     }
 
     constructor(context: Context) : this(WeakReference(context))
