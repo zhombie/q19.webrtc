@@ -1,5 +1,6 @@
 package kz.q19.webrtc.audio
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.media.*
@@ -18,6 +19,7 @@ internal abstract class AudioManagerCompat private constructor(
 
         private const val DEFAULT_AUDIOFOCUS_GAIN = AudioManager.AUDIOFOCUS_GAIN
 
+        @SuppressLint("ObsoleteSdkInt")
         fun create(context: Context): AudioManagerCompat =
             when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ->
@@ -60,9 +62,16 @@ internal abstract class AudioManagerCompat private constructor(
     }
 
     var savedAudioMode: Int = AudioManager.MODE_NORMAL
+        private set
+
     var savedIsSpeakerPhoneOn: Boolean = false
+        private set
+
     var savedIsMicrophoneMute: Boolean = false
+        private set
+
     var savedWiredHeadset: Boolean = false
+        private set
 
     abstract fun getWiredHeadsetPlugBroadcastAction(): String
 
@@ -80,7 +89,7 @@ internal abstract class AudioManagerCompat private constructor(
     abstract fun requestCallAudioFocus()
     abstract fun abandonCallAudioFocus()
 
-    // Store current audio state so we can restore it when stop() is called.
+    // Store current audio state so we can restore it when stop() is called
     fun storeState() {
         audioManager?.let {
             savedAudioMode = audioManager.mode
@@ -90,7 +99,7 @@ internal abstract class AudioManagerCompat private constructor(
         }
     }
 
-    // Restore previously stored audio states.
+    // Restore previously stored audio states
     fun restoreState() {
         setSpeakerphoneOn(savedIsSpeakerPhoneOn)
         setMicrophoneMute(savedIsMicrophoneMute)
@@ -117,7 +126,7 @@ internal abstract class AudioManagerCompat private constructor(
         return audioManager.isMicrophoneMute == on
     }
 
-    @RequiresApi(26)
+    @RequiresApi(Build.VERSION_CODES.O)
     private class Api26AudioManagerCompat(
         context: Context
     ) : AudioManagerCompat(context) {
@@ -137,9 +146,8 @@ internal abstract class AudioManagerCompat private constructor(
 
         private var audioFocusRequest: AudioFocusRequest? = null
 
-        override fun getWiredHeadsetPlugBroadcastAction(): String {
-            return AudioManager.ACTION_HEADSET_PLUG
-        }
+        override fun getWiredHeadsetPlugBroadcastAction(): String =
+            AudioManager.ACTION_HEADSET_PLUG
 
         override fun isWiredHeadsetOn(): Boolean {
             if (audioManager == null) return false
@@ -157,12 +165,11 @@ internal abstract class AudioManagerCompat private constructor(
             return false
         }
 
-        override fun createSoundPool(): SoundPool {
-            return SoundPool.Builder()
+        override fun createSoundPool(): SoundPool =
+            SoundPool.Builder()
                 .setAudioAttributes(AUDIO_ATTRIBUTES)
                 .setMaxStreams(1)
                 .build()
-        }
 
         override fun requestCallAudioFocus() {
             if (audioFocusRequest != null) {
@@ -193,7 +200,7 @@ internal abstract class AudioManagerCompat private constructor(
 
     }
 
-    @RequiresApi(21)
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private class Api21AudioManagerCompat(
         context: Context
     ) : Api19AudioManagerCompat(context) {
@@ -206,16 +213,14 @@ internal abstract class AudioManagerCompat private constructor(
                 .build()
         }
 
-        override fun getWiredHeadsetPlugBroadcastAction(): String {
-            return AudioManager.ACTION_HEADSET_PLUG
-        }
+        override fun getWiredHeadsetPlugBroadcastAction(): String =
+            AudioManager.ACTION_HEADSET_PLUG
 
-        override fun createSoundPool(): SoundPool {
-            return SoundPool.Builder()
+        override fun createSoundPool(): SoundPool =
+            SoundPool.Builder()
                 .setAudioAttributes(AUDIO_ATTRIBUTES)
                 .setMaxStreams(1)
                 .build()
-        }
 
     }
 
@@ -224,17 +229,14 @@ internal abstract class AudioManagerCompat private constructor(
         context: Context
     ) : AudioManagerCompat(context) {
 
-        override fun getWiredHeadsetPlugBroadcastAction(): String {
-            return Intent.ACTION_HEADSET_PLUG
-        }
+        override fun getWiredHeadsetPlugBroadcastAction(): String =
+            Intent.ACTION_HEADSET_PLUG
 
-        override fun isWiredHeadsetOn(): Boolean {
-            return audioManager?.isWiredHeadsetOn == true
-        }
+        override fun isWiredHeadsetOn(): Boolean =
+            audioManager?.isWiredHeadsetOn == true
 
-        override fun createSoundPool(): SoundPool {
-            return SoundPool(1, AudioManager.STREAM_VOICE_CALL, 0)
-        }
+        override fun createSoundPool(): SoundPool =
+            SoundPool(1, AudioManager.STREAM_VOICE_CALL, 0)
 
         override fun requestCallAudioFocus() {
             val result = audioManager?.requestAudioFocus(
