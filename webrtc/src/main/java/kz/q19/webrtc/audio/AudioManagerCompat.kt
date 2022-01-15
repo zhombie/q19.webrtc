@@ -62,16 +62,9 @@ internal abstract class AudioManagerCompat private constructor(
     }
 
     var savedAudioMode: Int = AudioManager.MODE_NORMAL
-        private set
-
     var savedIsSpeakerPhoneOn: Boolean = false
-        private set
-
     var savedIsMicrophoneMute: Boolean = false
-        private set
-
     var savedWiredHeadset: Boolean = false
-        private set
 
     abstract fun getWiredHeadsetPlugBroadcastAction(): String
 

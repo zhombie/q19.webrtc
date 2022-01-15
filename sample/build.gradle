@@ -41,17 +41,17 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.5.6'
+    implementation 'com.github.zhombie:q19.domain:1.5.8'
 
     // AppCompat
-    implementation 'androidx.appcompat:appcompat:1.4.0'
+    implementation 'androidx.appcompat:appcompat:1.4.1'
 
     // Core
     implementation 'androidx.core:core-ktx:1.7.0'
 
     // LeakCanary
     // debugImplementation because LeakCanary should only run in debug builds.
-    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.7'
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.8.1'
 
     // Library
     implementation project(':webrtc')
