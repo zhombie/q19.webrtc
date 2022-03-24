@@ -1,3 +1,5 @@
+apply from: '../system/dependencies.gradle'
+
 android {
     defaultConfig {
         consumerProguardFiles 'consumer-rules.pro'
@@ -15,7 +17,7 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.7.0'
 
     // Q19
-    implementation 'com.github.zhombie:q19.domain:1.5.9'
+    implementation "com.github.zhombie:q19.domain:${q19.domain}"
 
     // WebRTC
 //    implementation 'org.webrtc:google-webrtc:1.0.32006'  // Remote repository is outdated
