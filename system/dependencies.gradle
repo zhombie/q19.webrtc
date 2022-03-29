@@ -1,7 +1,7 @@
 ext {
     q19 = [
-        domain: '1.6.3'
+        domain: '1.6.4'
     ]
 
-    garage = '1.2.4'
+    garage = '1.2.5'
 }
